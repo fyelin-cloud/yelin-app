@@ -1,0 +1,53 @@
+name: Compilar la app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  compilar:
+    runs-on: macos-latest
+
+    steps:
+      - name: Traer el código
+        uses: actions/checkout@v7
+
+      - name: Ver qué máquina y qué Xcode tocaron
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Armar el proyecto de Xcode
+        run: xcodegen generate
+
+      - name: Compilar sin firma
+        run: |
+          xcodebuild \
+            -project YelinApp.xcodeproj \
+            -target YelinApp \
+            -configuration Release \
+            -sdk iphoneos \
+            CONFIGURATION_BUILD_DIR="$PWD/salida" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Empaquetar el .ipa
+        run: |
+          mkdir -p Payload
+          cp -R salida/YelinApp.app Payload/
+          zip -qry YelinApp.ipa Payload
+          ls -lh YelinApp.ipa
+
+      - name: Dejar el .ipa para descargar
+        uses: actions/upload-artifact@v7
+        with:
+          name: YelinApp-ipa
+          path: YelinApp.ipa
+          retention-days: 30
