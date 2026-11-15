@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   compilar:
     runs-on: macos-latest
@@ -40,12 +43,28 @@ jobs:
 
       - name: Empaquetar el .ipa
         run: |
+          rm -rf Payload
           mkdir -p Payload
           cp -R salida/YelinApp.app Payload/
           zip -qry YelinApp.ipa Payload
-          ls -lh YelinApp.ipa
+          echo "=== contenido del .app ==="
+          ls -l Payload/YelinApp.app
+          echo "=== estructura del .ipa ==="
+          unzip -l YelinApp.ipa
+          echo "=== datos del Info.plist ==="
+          plutil -p Payload/YelinApp.app/Info.plist | grep -E "CFBundleIdentifier|CFBundleDisplayName|CFBundleExecutable|CFBundleVersion|CFBundleShortVersion|MinimumOS"
+          echo "=== arquitectura del binario ==="
+          lipo -info Payload/YelinApp.app/YelinApp
 
-      - name: Dejar el .ipa para descargar
+      - name: Publicar el .ipa para descarga directa
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "compilacion-${{ github.run_number }}" YelinApp.ipa \
+            --title "Compilación ${{ github.run_number }}" \
+            --notes "Archivo para instalar con AltStore. Descargá YelinApp.ipa directamente, sin zip."
+
+      - name: Dejar el .ipa también como artefacto
         uses: actions/upload-artifact@v7
         with:
           name: YelinApp-ipa
