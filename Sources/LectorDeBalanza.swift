@@ -26,8 +26,10 @@ final class LectorDeBalanza: NSObject, ObservableObject {
     @Published var tramasDescartadas = 0
     @Published var pesadas: [Pesada] = []
     @Published var ultimaGuardada: Pesada?
+    @Published var estadoDeSalud = "Sin pedir todavía"
 
     let almacen = Almacen()
+    let salud = Salud()
 
     private var central: CBCentralManager!
     private var balanza: CBPeripheral?
@@ -40,6 +42,7 @@ final class LectorDeBalanza: NSObject, ObservableObject {
         super.init()
         pesadas = almacen.cargarPesadas().sorted { $0.instante > $1.instante }
         ultimaGuardada = pesadas.first
+        estadoDeSalud = salud.estadoDelPermiso()
         central = CBCentralManager(delegate: self, queue: .main)
     }
 
@@ -53,6 +56,18 @@ final class LectorDeBalanza: NSObject, ObservableObject {
             estado = "Esperando que la balanza se encienda"
         } else {
             empezarABuscar()
+        }
+    }
+
+    func pedirPermisoDeSalud() {
+        salud.pedirPermiso { [weak self] mensaje in
+            self?.estadoDeSalud = mensaje
+        }
+    }
+
+    func mandarASalud(_ pesada: Pesada) {
+        salud.guardar(pesada) { [weak self] mensaje in
+            self?.estadoDeSalud = mensaje
         }
     }
 
@@ -127,6 +142,7 @@ final class LectorDeBalanza: NSObject, ObservableObject {
         pesadas.insert(pesada, at: 0)
         ultimaGuardada = pesada
         estado = "Guardado"
+        mandarASalud(pesada)
     }
 
     /// Devuelve los gramos si la trama es válida, y nada si no lo es.

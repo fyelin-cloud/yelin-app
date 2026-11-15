@@ -12,6 +12,8 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+    dependencies:
+      - sdk: HealthKit.framework
     settings:
       base:
         PRODUCT_NAME: YelinApp
@@ -25,6 +27,7 @@ targets:
       properties:
         CFBundleDisplayName: Yelin App
         NSBluetoothAlwaysUsageDescription: La app usa Bluetooth para leer la balanza y la máquina de remo.
+        NSHealthUpdateUsageDescription: La app anota tu peso en Salud para que Google Health lo levante.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         CFBundleShortVersionString: "$(MARKETING_VERSION)"

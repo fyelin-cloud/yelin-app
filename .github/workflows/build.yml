@@ -21,8 +21,8 @@ jobs:
           sw_vers
           xcodebuild -version
 
-      - name: Instalar XcodeGen
-        run: brew install xcodegen
+      - name: Instalar XcodeGen y ldid
+        run: brew install xcodegen ldid
 
       - name: Armar el proyecto de Xcode
         run: xcodegen generate
@@ -46,6 +46,9 @@ jobs:
           rm -rf Payload
           mkdir -p Payload
           cp -R salida/YelinApp.app Payload/
+          echo "=== metiendo los permisos en el binario ==="
+          ldid -Ssideload.entitlements Payload/YelinApp.app/YelinApp
+          ldid -e Payload/YelinApp.app/YelinApp
           zip -qry YelinApp.ipa Payload
           echo "=== contenido del .app ==="
           ls -l Payload/YelinApp.app

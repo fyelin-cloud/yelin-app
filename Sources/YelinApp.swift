@@ -35,6 +35,23 @@ struct PantallaBalanza: View {
                     }
                 }
 
+                Section("Salud de Apple") {
+                    Fila("Permiso", balanza.estadoDeSalud)
+                    Button {
+                        balanza.pedirPermisoDeSalud()
+                    } label: {
+                        Label("Dar permiso a Salud", systemImage: "heart.text.square")
+                    }
+                    if let ultima = balanza.ultimaGuardada {
+                        Button {
+                            balanza.mandarASalud(ultima)
+                        } label: {
+                            Label(String(format: "Mandar %.2f kg a Salud", ultima.kg),
+                                  systemImage: "arrow.up.heart")
+                        }
+                    }
+                }
+
                 Section("Archivos") {
                     ShareLink(item: balanza.almacen.urlPesadas) {
                         Label("Compartir las pesadas", systemImage: "square.and.arrow.up")
