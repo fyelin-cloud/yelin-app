@@ -3,10 +3,16 @@ import SwiftUI
 @main
 struct AplicacionYelin: App {
     @StateObject private var balanza = LectorDeBalanza()
+    @StateObject private var remo = LectorDeRemo()
 
     var body: some Scene {
         WindowGroup {
-            PantallaBalanza(balanza: balanza)
+            TabView {
+                PantallaBalanza(balanza: balanza)
+                    .tabItem { Label("Balanza", systemImage: "scalemass") }
+                PantallaRemo(remo: remo)
+                    .tabItem { Label("Remo", systemImage: "figure.rower") }
+            }
         }
     }
 }
