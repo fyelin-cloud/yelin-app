@@ -52,7 +52,7 @@ jobs:
           echo "=== estructura del .ipa ==="
           unzip -l YelinApp.ipa
           echo "=== datos del Info.plist ==="
-          plutil -p Payload/YelinApp.app/Info.plist | grep -E "CFBundleIdentifier|CFBundleDisplayName|CFBundleExecutable|CFBundleVersion|CFBundleShortVersion|MinimumOS"
+          plutil -p Payload/YelinApp.app/Info.plist
           echo "=== arquitectura del binario ==="
           lipo -info Payload/YelinApp.app/YelinApp
 
