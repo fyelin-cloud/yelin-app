@@ -2,16 +2,36 @@ import SwiftUI
 
 @main
 struct AplicacionYelin: App {
-    @StateObject private var balanza = LectorDeBalanza()
-    @StateObject private var remo = LectorDeRemo()
+    @StateObject private var sincronizador: Sincronizador
+    @StateObject private var balanza: LectorDeBalanza
+    @StateObject private var remo: LectorDeRemo
+
+    @State private var abriendo = true
+
+    init() {
+        let compartido = Sincronizador()
+        _sincronizador = StateObject(wrappedValue: compartido)
+        _balanza = StateObject(wrappedValue: LectorDeBalanza(sincronizador: compartido))
+        _remo = StateObject(wrappedValue: LectorDeRemo(sincronizador: compartido))
+    }
 
     var body: some Scene {
         WindowGroup {
-            TabView {
-                PantallaBalanza(balanza: balanza)
-                    .tabItem { Label("Balanza", systemImage: "scalemass") }
-                PantallaRemo(remo: remo)
-                    .tabItem { Label("Remo", systemImage: "figure.rower") }
+            ZStack {
+                TabView {
+                    PantallaBalanza(balanza: balanza, sincronizador: sincronizador)
+                        .tabItem { Label("Balanza", systemImage: "scalemass") }
+                    PantallaRemo(remo: remo)
+                        .tabItem { Label("Remo", systemImage: "figure.rower") }
+                }
+
+                if abriendo {
+                    PantallaDeApertura {
+                        withAnimation(.easeOut(duration: 0.35)) { abriendo = false }
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
+                }
             }
         }
     }
@@ -19,6 +39,7 @@ struct AplicacionYelin: App {
 
 struct PantallaBalanza: View {
     @ObservedObject var balanza: LectorDeBalanza
+    @ObservedObject var sincronizador: Sincronizador
 
     var body: some View {
         NavigationView {
@@ -42,21 +63,21 @@ struct PantallaBalanza: View {
                 }
 
                 Section("Google Drive") {
-                    Fila("Estado", balanza.estadoDeDrive)
-                    if balanza.driveConectado {
+                    Fila("Estado", sincronizador.estado)
+                    if sincronizador.conectado {
                         Button {
-                            Task { await balanza.subirADrive() }
+                            Task { await sincronizador.subirTodo() }
                         } label: {
-                            Label("Subir ahora", systemImage: "arrow.up.doc")
+                            Label("Subir todo ahora", systemImage: "arrow.up.doc")
                         }
                         Button(role: .destructive) {
-                            balanza.desconectarDrive()
+                            sincronizador.desconectar()
                         } label: {
                             Label("Desconectar Drive", systemImage: "xmark.circle")
                         }
                     } else {
                         Button {
-                            balanza.conectarConDrive()
+                            sincronizador.conectar()
                         } label: {
                             Label("Conectar con Google Drive", systemImage: "link")
                         }

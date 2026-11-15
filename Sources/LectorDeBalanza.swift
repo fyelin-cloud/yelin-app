@@ -27,12 +27,11 @@ final class LectorDeBalanza: NSObject, ObservableObject {
     @Published var pesadas: [Pesada] = []
     @Published var ultimaGuardada: Pesada?
     @Published var estadoDeSalud = "Sin pedir todavía"
-    @Published var estadoDeDrive = "Sin conectar"
-    @Published var driveConectado = false
 
-    let almacen = Almacen()
+    let sincronizador: Sincronizador
     let salud = Salud()
-    let drive = Drive()
+
+    var almacen: Almacen { sincronizador.almacen }
 
     private var central: CBCentralManager!
     private var balanza: CBPeripheral?
@@ -41,12 +40,12 @@ final class LectorDeBalanza: NSObject, ObservableObject {
     private var repeticiones = 0
     private var yaGuardeEstaSubida = false
 
-    override init() {
+    init(sincronizador: Sincronizador) {
+        self.sincronizador = sincronizador
         super.init()
         pesadas = almacen.cargarPesadas().sorted { $0.instante > $1.instante }
         ultimaGuardada = pesadas.first
         estadoDeSalud = salud.estadoDelPermiso()
-        revisarDrive()
         central = CBCentralManager(delegate: self, queue: .main)
     }
 
@@ -60,51 +59,6 @@ final class LectorDeBalanza: NSObject, ObservableObject {
             estado = "Esperando que la balanza se encienda"
         } else {
             empezarABuscar()
-        }
-    }
-
-    // MARK: Google Drive
-
-    func revisarDrive() {
-        guard drive.estaConfigurado else {
-            driveConectado = false
-            estadoDeDrive = "La app se compiló sin el identificador de Google"
-            return
-        }
-        driveConectado = drive.haySesion
-        estadoDeDrive = driveConectado ? "Conectado" : "Sin conectar"
-    }
-
-    func conectarConDrive() {
-        estadoDeDrive = "Abriendo el inicio de sesión de Google"
-        Task { @MainActor in
-            do {
-                try await drive.iniciarSesion()
-                driveConectado = true
-                estadoDeDrive = "Conectado"
-                await subirADrive()
-            } catch {
-                driveConectado = false
-                estadoDeDrive = "No se pudo conectar: \(error.localizedDescription)"
-            }
-        }
-    }
-
-    func desconectarDrive() {
-        drive.cerrarSesion()
-        driveConectado = false
-        estadoDeDrive = "Sin conectar"
-    }
-
-    @MainActor
-    func subirADrive() async {
-        guard drive.estaConfigurado, drive.haySesion else { return }
-        estadoDeDrive = "Subiendo"
-        do {
-            try await drive.subir([almacen.urlPesadas, almacen.urlTramas])
-            estadoDeDrive = "Subido a las " + Date().formatted(date: .omitted, time: .shortened)
-        } catch {
-            estadoDeDrive = "Falló la subida: \(error.localizedDescription)"
         }
     }
 
@@ -192,7 +146,7 @@ final class LectorDeBalanza: NSObject, ObservableObject {
         ultimaGuardada = pesada
         estado = "Guardado"
         mandarASalud(pesada)
-        Task { await subirADrive() }
+        sincronizador.subirEnSegundoPlano()
     }
 
     /// Devuelve los gramos si la trama es válida, y nada si no lo es.

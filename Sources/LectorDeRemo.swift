@@ -15,17 +15,22 @@ struct DatosDeRemo {
     var tiempoSegundos: Int?
 }
 
-/// Lee la máquina de remo Gadnic por Bluetooth.
+/// Lee la máquina de remo Gadnic por Bluetooth y guarda cada sesión.
 ///
-/// A diferencia de la balanza, acá no hay nada que descifrar: la máquina usa
-/// FTMS, el estándar de equipos de gimnasio. Servicio 0x1826, característica
-/// 0x2AD1 (Rower Data), con un campo de banderas al principio que dice qué
-/// datos vienen en esa trama.
+/// La máquina usa FTMS, el estándar de equipos de gimnasio: servicio 0x1826,
+/// característica 0x2AD1. Pero solo manda cuatro cosas —paladas, conteo, ritmo
+/// y watts del momento— y borra todo al apagarse. La distancia, el tiempo y el
+/// historial los hace la app. Detalle en `claude/remo-ftms.md`.
 final class LectorDeRemo: NSObject, ObservableObject {
 
     static let servicio = CBUUID(string: "1826")
     static let canalQueAvisa = CBUUID(string: "2AD1")
     static let nombreQuePublica = "Smart5181"
+
+    /// Sin remar durante este tiempo, la sesión se da por terminada.
+    static let segundosParaCerrarSesion = 90.0
+    /// Abajo de esto no se guarda: fue una prueba, no una sesión.
+    static let metrosMinimosParaGuardar = 50.0
 
     @Published var estado = "Arrancando"
     @Published var datos = DatosDeRemo()
@@ -38,38 +43,59 @@ final class LectorDeRemo: NSObject, ObservableObject {
     @Published var segundosRemando = 0.0
     @Published var segundosTotales = 0.0
     @Published var wattsPromedioCalculado = 0.0
+    @Published var paladasDeLaSesion = 0
 
-    private var instanteAnterior: Date?
-    private var sumaDeWattsPorSegundo = 0.0
+    @Published var sesionAbierta = false
+    @Published var sesiones: [SesionDeRemo] = []
+    @Published var avisoDeRecuperacion = ""
 
-    private(set) var tramasCrudas: [String] = []
+    let sincronizador: Sincronizador
+    var almacen: Almacen { sincronizador.almacen }
 
     private var central: CBCentralManager!
     private var maquina: CBPeripheral?
 
-    override init() {
+    private var inicioDeSesion: Date?
+    private var instanteAnterior: Date?
+    private var ultimoRemo: Date?
+    private var sumaDeWattsPorSegundo = 0.0
+
+    private(set) var tramasCrudas: [String] = []
+
+    init(sincronizador: Sincronizador) {
+        self.sincronizador = sincronizador
         super.init()
+        sesiones = almacen.cargarSesiones().sorted { $0.inicio > $1.inicio }
+        recuperarSesionInterrumpida()
         central = CBCentralManager(delegate: self, queue: .main)
     }
 
-    func reiniciarSesion() {
-        distanciaCalculada = 0
-        segundosRemando = 0
-        segundosTotales = 0
-        wattsPromedioCalculado = 0
-        sumaDeWattsPorSegundo = 0
-        instanteAnterior = nil
-        datos = DatosDeRemo()
-    }
+    // MARK: Lo que puede pedir la pantalla
 
     func buscarDeNuevo() {
-        datos = DatosDeRemo()
         if let maquina {
             central.connect(maquina, options: nil)
             estado = "Esperando que la máquina se encienda"
         } else {
             empezarABuscar()
         }
+    }
+
+    func terminarSesion() {
+        cerrarSesion(motivo: "a mano")
+    }
+
+    func descartarSesion() {
+        inicioDeSesion = nil
+        sesionAbierta = false
+        almacen.borrarEnCurso()
+        reiniciarAcumuladores()
+    }
+
+    func borrar(_ sesion: SesionDeRemo) {
+        sesiones.removeAll { $0.id == sesion.id }
+        almacen.reescribirSesiones(sesiones)
+        sincronizador.subirEnSegundoPlano()
     }
 
     func textoParaCopiar() -> String {
@@ -80,6 +106,72 @@ final class LectorDeRemo: NSObject, ObservableObject {
         lineas.append(contentsOf: tramasCrudas)
         return lineas.joined(separator: "\n")
     }
+
+    // MARK: Sesiones
+
+    private func reiniciarAcumuladores() {
+        distanciaCalculada = 0
+        segundosRemando = 0
+        segundosTotales = 0
+        wattsPromedioCalculado = 0
+        paladasDeLaSesion = 0
+        sumaDeWattsPorSegundo = 0
+        instanteAnterior = nil
+        ultimoRemo = nil
+        datos = DatosDeRemo()
+    }
+
+    private func sesionActual(hasta fin: Date) -> SesionDeRemo? {
+        guard let inicio = inicioDeSesion else { return nil }
+        return SesionDeRemo(
+            inicio: inicio,
+            fin: fin,
+            segundosRemando: segundosRemando,
+            segundosTotales: segundosTotales,
+            metros: distanciaCalculada,
+            paladas: paladasDeLaSesion,
+            wattsPromedio: wattsPromedioCalculado)
+    }
+
+    private func abrirSesion(_ ahora: Date) {
+        inicioDeSesion = ahora
+        sesionAbierta = true
+        avisoDeRecuperacion = ""
+        estado = "Sesión en curso"
+    }
+
+    private func cerrarSesion(motivo: String) {
+        guard let sesion = sesionActual(hasta: Date()) else { return }
+        inicioDeSesion = nil
+        sesionAbierta = false
+        almacen.borrarEnCurso()
+
+        if sesion.metros >= Self.metrosMinimosParaGuardar {
+            almacen.agregarSesion(sesion)
+            sesiones.insert(sesion, at: 0)
+            estado = String(format: "Sesión guardada: %.0f m (%@)", sesion.metros, motivo)
+            sincronizador.subirEnSegundoPlano()
+        } else {
+            estado = "Sesión demasiado corta, no se guardó"
+        }
+        reiniciarAcumuladores()
+    }
+
+    /// Si la app se cerró o se cortó el Bluetooth a mitad de una sesión, queda
+    /// anotada en disco. Al abrir de nuevo se rescata en vez de perderse.
+    private func recuperarSesionInterrumpida() {
+        guard let interrumpida = almacen.leerEnCurso() else { return }
+        almacen.borrarEnCurso()
+        guard interrumpida.metros >= Self.metrosMinimosParaGuardar else { return }
+        almacen.agregarSesion(interrumpida)
+        sesiones.insert(interrumpida, at: 0)
+        sesiones.sort { $0.inicio > $1.inicio }
+        avisoDeRecuperacion = String(format: "Se recuperó una sesión interrumpida de %.0f m",
+                                     interrumpida.metros)
+        sincronizador.subirEnSegundoPlano()
+    }
+
+    // MARK: Bluetooth
 
     private func empezarABuscar() {
         guard central.state == .poweredOn else { return }
@@ -141,37 +233,60 @@ final class LectorDeRemo: NSObject, ObservableObject {
     /// La máquina solo manda ritmo y potencia del momento. La distancia y el
     /// tiempo se calculan acá: a un ritmo de X segundos cada 500 m, la
     /// velocidad es 500/X metros por segundo.
-    private func acumular(_ d: DatosDeRemo) {
-        let ahora = Date()
+    private func acumular(_ d: DatosDeRemo, ahora: Date) {
+        if let conteo = d.paladasTotales, conteo > paladasDeLaSesion {
+            paladasDeLaSesion = conteo
+        }
+
         defer { instanteAnterior = ahora }
         guard let anterior = instanteAnterior else { return }
 
         let transcurrido = ahora.timeIntervalSince(anterior)
         guard transcurrido > 0, transcurrido < 5 else { return }
 
+        let remando = (d.ritmoPor500 ?? 0) > 0
+
+        if remando {
+            if inicioDeSesion == nil { abrirSesion(ahora) }
+            ultimoRemo = ahora
+        }
+
+        guard inicioDeSesion != nil else { return }
         segundosTotales += transcurrido
 
-        guard let ritmo = d.ritmoPor500, ritmo > 0 else { return }
-        segundosRemando += transcurrido
-        distanciaCalculada += (500.0 / Double(ritmo)) * transcurrido
+        if remando, let ritmo = d.ritmoPor500 {
+            segundosRemando += transcurrido
+            distanciaCalculada += (500.0 / Double(ritmo)) * transcurrido
+            if let w = d.watts, w > 0 {
+                sumaDeWattsPorSegundo += Double(w) * transcurrido
+                wattsPromedioCalculado = sumaDeWattsPorSegundo / max(segundosRemando, 1)
+            }
+        }
 
-        if let w = d.watts, w > 0 {
-            sumaDeWattsPorSegundo += Double(w) * transcurrido
-            wattsPromedioCalculado = sumaDeWattsPorSegundo / max(segundosRemando, 1)
+        if let sesion = sesionActual(hasta: ahora) {
+            almacen.guardarEnCurso(sesion)
+        }
+
+        if let ultimo = ultimoRemo,
+           ahora.timeIntervalSince(ultimo) > Self.segundosParaCerrarSesion {
+            cerrarSesion(motivo: "sin remar")
         }
     }
 
     private func recibir(_ datosCrudos: Data) {
         let bytes = [UInt8](datosCrudos)
         let enHexa = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
+        let ahora = Date()
+
         ultimaTrama = enHexa
         tramasCrudas.append(enHexa)
         cantidadDeTramas = tramasCrudas.count
+        almacen.agregarTramaDeRemo(enHexa, instante: ahora)
 
         if let interpretados = Self.interpretar(bytes) {
             datos = interpretados
-            acumular(interpretados)
-            estado = "Leyendo"
+            acumular(interpretados, ahora: ahora)
+            if !sesionAbierta { estado = "Escuchando. Dale unas paladas" }
         }
     }
 }
@@ -211,7 +326,7 @@ extension LectorDeRemo: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         cantidadDeTramas = 0
         tramasCrudas.removeAll()
-        reiniciarSesion()
+        reiniciarAcumuladores()
         estado = "Conectada. Buscando el canal de datos"
         peripheral.discoverServices([Self.servicio])
     }
@@ -224,7 +339,8 @@ extension LectorDeRemo: CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager,
                         didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        estado = "En espera. Prendé la máquina y se conecta sola"
+        if sesionAbierta { cerrarSesion(motivo: "se cortó la conexión") }
+        else { estado = "En espera. Prendé la máquina y se conecta sola" }
         central.connect(peripheral, options: nil)
     }
 }
