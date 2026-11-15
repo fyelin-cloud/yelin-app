@@ -168,8 +168,12 @@ final class Drive: NSObject {
         for archivo in archivos {
             guard let contenido = try? Data(contentsOf: archivo) else { continue }
             let nombre = archivo.lastPathComponent
-            let id = try await idDelArchivo(nombre: nombre, carpeta: carpeta, token: token)
-                ?? crearArchivo(nombre: nombre, carpeta: carpeta, token: token)
+            let id: String
+            if let existente = try await idDelArchivo(nombre: nombre, carpeta: carpeta, token: token) {
+                id = existente
+            } else {
+                id = try await crearArchivo(nombre: nombre, carpeta: carpeta, token: token)
+            }
             try await subirContenido(contenido, a: id, token: token)
         }
     }
