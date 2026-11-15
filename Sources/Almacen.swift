@@ -44,10 +44,11 @@ final class Almacen {
 
     /// Todos los archivos que se suben a Drive.
     var archivosParaSubir: [URL] {
-        [urlResumen, urlPesadas, urlTramas, urlSesiones, urlTramasDeRemo]
+        [urlResumen, urlPesadas, urlTramas, urlSesiones, urlTramasDeRemo,
+         urlConsumo, urlNotas, urlGastos]
     }
 
-    private let fechas: ISO8601DateFormatter = {
+    let fechas: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.timeZone = TimeZone.current
         f.formatOptions = [.withInternetDateTime]
@@ -69,6 +70,11 @@ final class Almacen {
         crearSiFalta(urlSesiones,
                      encabezado: "inicio,fin,segundos_remando,segundos_totales,metros,paladas,watts_promedio,ritmo_500m")
         crearSiFalta(urlTramasDeRemo, encabezado: "instante,trama")
+        prepararRegistros()
+    }
+
+    var documentos: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
     // MARK: Pesadas
@@ -222,17 +228,17 @@ final class Almacen {
 
     // MARK: Archivos
 
-    private func crearSiFalta(_ archivo: URL, encabezado: String) {
+    func crearSiFalta(_ archivo: URL, encabezado: String) {
         guard !FileManager.default.fileExists(atPath: archivo.path) else { return }
         try? (encabezado + "\n").write(to: archivo, atomically: true, encoding: .utf8)
     }
 
-    private func escribir(_ lineas: [String], en archivo: URL) {
+    func escribir(_ lineas: [String], en archivo: URL) {
         try? (lineas.joined(separator: "\n") + "\n")
             .write(to: archivo, atomically: true, encoding: .utf8)
     }
 
-    private func agregar(_ linea: String, a archivo: URL) {
+    func agregar(_ linea: String, a archivo: URL) {
         let datos = Data((linea + "\n").utf8)
         if let mango = try? FileHandle(forWritingTo: archivo) {
             defer { try? mango.close() }

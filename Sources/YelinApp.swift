@@ -5,6 +5,7 @@ struct AplicacionYelin: App {
     @StateObject private var sincronizador: Sincronizador
     @StateObject private var balanza: LectorDeBalanza
     @StateObject private var remo: LectorDeRemo
+    @StateObject private var diario: Diario
 
     @State private var abriendo = true
     @State private var pestana = 0
@@ -15,6 +16,7 @@ struct AplicacionYelin: App {
         _sincronizador = StateObject(wrappedValue: compartido)
         _balanza = StateObject(wrappedValue: LectorDeBalanza(sincronizador: compartido))
         _remo = StateObject(wrappedValue: LectorDeRemo(sincronizador: compartido))
+        _diario = StateObject(wrappedValue: Diario(sincronizador: compartido))
     }
 
     var body: some Scene {
@@ -22,7 +24,8 @@ struct AplicacionYelin: App {
             ZStack {
                 TabView(selection: $pestana) {
                     PantallaHoy(balanza: balanza, remo: remo,
-                                sincronizador: sincronizador, pestana: $pestana)
+                                sincronizador: sincronizador, diario: diario,
+                                pestana: $pestana)
                         .tabItem { Label("Hoy", systemImage: "square.grid.2x2") }
                         .tag(0)
                     PantallaBalanza(balanza: balanza, sincronizador: sincronizador)

@@ -8,6 +8,7 @@ struct PantallaHoy: View {
     @ObservedObject var balanza: LectorDeBalanza
     @ObservedObject var remo: LectorDeRemo
     @ObservedObject var sincronizador: Sincronizador
+    @ObservedObject var diario: Diario
     @Binding var pestana: Int
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
@@ -20,20 +21,26 @@ struct PantallaHoy: View {
     }
 
     var body: some View {
-        ZStack {
-            Paleta.fondo.ignoresSafeArea()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 26) {
-                    encabezado
-                    grilla
-                    pie
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 18)
-                .frame(maxWidth: 760)
-                .frame(maxWidth: .infinity)
+        NavigationStack {
+            ZStack {
+                Paleta.fondo.ignoresSafeArea()
+                contenido
             }
+            .navigationBarHidden(true)
+        }
+    }
+
+    private var contenido: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                encabezado
+                grilla
+                pie
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 18)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -65,20 +72,44 @@ struct PantallaHoy: View {
 
     private var grilla: some View {
         LazyVGrid(columns: columnas, spacing: 14) {
-            Ficha(titulo: "Peso",
-                  simbolo: "scalemass",
-                  detalle: detalleDePeso,
-                  activa: true) { pestana = 1 }
+            Button { pestana = 1 } label: {
+                Ficha(titulo: "Peso", simbolo: "scalemass",
+                      detalle: detalleDePeso, activa: true)
+            }
+            .buttonStyle(.plain)
 
-            Ficha(titulo: "Remo",
-                  simbolo: "figure.rower",
-                  detalle: detalleDeRemo,
-                  activa: true) { pestana = 2 }
+            Button { pestana = 2 } label: {
+                Ficha(titulo: "Remo", simbolo: "figure.rower",
+                      detalle: detalleDeRemo, activa: true)
+            }
+            .buttonStyle(.plain)
 
-            Ficha(titulo: "Pesas", simbolo: "dumbbell", detalle: "Pronto", activa: false) {}
-            Ficha(titulo: "Proteína", simbolo: "cup.and.saucer", detalle: "Pronto", activa: false) {}
-            Ficha(titulo: "Notas", simbolo: "note.text", detalle: "Pronto", activa: false) {}
-            Ficha(titulo: "Gastos", simbolo: "dollarsign.circle", detalle: "Pronto", activa: false) {}
+            NavigationLink {
+                PantallaProteina(diario: diario)
+            } label: {
+                Ficha(titulo: "Proteína", simbolo: "cup.and.saucer",
+                      detalle: detalleDeProteina, activa: true)
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                PantallaNotas(diario: diario)
+            } label: {
+                Ficha(titulo: "Notas", simbolo: "note.text",
+                      detalle: detalleDeNotas, activa: true)
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                PantallaGastos(diario: diario)
+            } label: {
+                Ficha(titulo: "Gastos", simbolo: "dollarsign.circle",
+                      detalle: detalleDeGastos, activa: true)
+            }
+            .buttonStyle(.plain)
+
+            Ficha(titulo: "Pesas", simbolo: "dumbbell",
+                  detalle: "Pronto", activa: false)
         }
     }
 
@@ -91,6 +122,25 @@ struct PantallaHoy: View {
     private var detalleDeRemo: String {
         guard let ultima = remo.sesiones.first else { return "Sin sesiones todavía" }
         return String(format: "%.0f m · %@", ultima.metros, cuandoFue(ultima.inicio))
+    }
+
+    private var detalleDeProteina: String {
+        let hoy = diario.scoopsDeHoy
+        guard hoy > 0 else { return "Nada hoy" }
+        let texto = hoy == hoy.rounded() ? String(format: "%.0f", hoy) : String(format: "%.1f", hoy)
+        return texto + (hoy == 1 ? " scoop hoy" : " scoops hoy")
+    }
+
+    private var detalleDeNotas: String {
+        let cuantas = diario.notas.count
+        if cuantas == 0 { return "Sin notas todavía" }
+        return cuantas == 1 ? "1 nota" : "\(cuantas) notas"
+    }
+
+    private var detalleDeGastos: String {
+        let total = diario.totalDelMes()
+        guard total > 0 else { return "Sin gastos este mes" }
+        return Plata.corto(total) + " este mes"
     }
 
     private func cuandoFue(_ fecha: Date) -> String {
@@ -127,35 +177,30 @@ struct Ficha: View {
     let simbolo: String
     let detalle: String
     let activa: Bool
-    let accion: () -> Void
 
     var body: some View {
-        Button(action: accion) {
-            VStack(alignment: .leading, spacing: 0) {
-                Image(systemName: simbolo)
-                    .font(.system(size: 21, weight: .medium))
-                    .foregroundColor(activa ? Paleta.acento : Paleta.suave)
-                Spacer(minLength: 12)
-                Text(titulo)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(activa ? Paleta.texto : Paleta.suave)
-                Text(detalle)
-                    .font(.system(size: 12))
-                    .foregroundColor(Paleta.suave)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .padding(.top, 3)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 124)
-            .padding(15)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Paleta.superficie))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Paleta.borde, lineWidth: 1))
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: simbolo)
+                .font(.system(size: 21, weight: .medium))
+                .foregroundColor(activa ? Paleta.acento : Paleta.suave)
+            Spacer(minLength: 12)
+            Text(titulo)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(activa ? Paleta.texto : Paleta.suave)
+            Text(detalle)
+                .font(.system(size: 12))
+                .foregroundColor(Paleta.suave)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .padding(.top, 3)
         }
-        .buttonStyle(.plain)
-        .disabled(!activa)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 124)
+        .padding(15)
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(Paleta.superficie))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .stroke(Paleta.borde, lineWidth: 1))
         .opacity(activa ? 1 : 0.5)
     }
 }
