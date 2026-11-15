@@ -106,20 +106,12 @@ struct PantallaRemo: View {
     }
 
     private var distancia: some View {
-        VStack(spacing: 6) {
-            let metros = Int(remo.distanciaCalculada)
-            Text("\(metros)")
-                .font(.system(size: 72, weight: .bold, design: .rounded))
-                .monospacedDigit()
-            Text("metros")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Text("faltan \(max(0, 10_000 - metros)) para los 10 000")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        let metros = Int(remo.distanciaCalculada)
+        return Hero(numero: "\(metros)",
+                    unidad: "metros",
+                    estado: remo.estado,
+                    señal: remo.sesionAbierta ? .conectado : .esperando,
+                    alPie: "faltan \(max(0, 10_000 - metros)) para los 10 000")
     }
 
     private var ritmoPromedio: String {

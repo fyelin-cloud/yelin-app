@@ -171,26 +171,20 @@ struct PantallaBalanza: View {
     }
 
     private var enVivo: some View {
-        VStack(spacing: 8) {
-            if let kg = balanza.pesoKg {
-                Text(String(format: "%.2f", kg))
-                    .font(.system(size: 76, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-            } else {
-                Text("—")
-                    .font(.system(size: 76, weight: .bold, design: .rounded))
-                    .foregroundColor(.secondary)
-            }
-            Text("kg")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Text(balanza.estado)
-                .font(.callout)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+        Hero(numero: balanza.pesoKg.map { String(format: "%.2f", $0) } ?? "—",
+             unidad: "kg",
+             estado: balanza.estado,
+             señal: señal,
+             alPie: balanza.pesadas.isEmpty ? nil
+                  : "\(balanza.pesadas.count) pesadas guardadas")
+    }
+
+    private var señal: Hero.Señal {
+        if balanza.pesoKg != nil { return .conectado }
+        if balanza.estado.contains("apagado") || balanza.estado.contains("permiso") {
+            return .apagado
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        return .esperando
     }
 }
 
