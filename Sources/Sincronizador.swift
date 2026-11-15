@@ -49,6 +49,7 @@ final class Sincronizador: ObservableObject {
     func subirTodo() async {
         guard drive.estaConfigurado, drive.haySesion else { return }
         estado = "Subiendo"
+        almacen.escribirResumen(Resumen.generar(almacen: almacen))
         do {
             try await drive.subir(almacen.archivosParaSubir)
             estado = "Subido a las " + Date().formatted(date: .omitted, time: .shortened)

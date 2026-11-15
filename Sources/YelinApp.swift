@@ -48,6 +48,14 @@ struct PantallaBalanza: View {
                     enVivo
                 }
 
+                Section {
+                    NavigationLink {
+                        PantallaPeso(pesadas: balanza.pesadas)
+                    } label: {
+                        Label("Historial y tendencia", systemImage: "chart.xyaxis.line")
+                    }
+                }
+
                 Section("Pesadas guardadas") {
                     if balanza.pesadas.isEmpty {
                         Text("Todavía ninguna. Subite a la balanza.")

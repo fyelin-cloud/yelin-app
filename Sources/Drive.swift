@@ -174,7 +174,8 @@ final class Drive: NSObject {
             } else {
                 id = try await crearArchivo(nombre: nombre, carpeta: carpeta, token: token)
             }
-            try await subirContenido(contenido, a: id, token: token)
+            let tipo = nombre.hasSuffix(".md") ? "text/markdown" : "text/csv"
+            try await subirContenido(contenido, a: id, token: token, tipo: tipo)
         }
     }
 
@@ -242,12 +243,13 @@ final class Drive: NSObject {
         return id
     }
 
-    private func subirContenido(_ contenido: Data, a id: String, token: String) async throws {
+    private func subirContenido(_ contenido: Data, a id: String,
+                                token: String, tipo: String) async throws {
         let url = URL(string: "https://www.googleapis.com/upload/drive/v3/files/\(id)?uploadType=media")!
         var pedido = URLRequest(url: url)
         pedido.httpMethod = "PATCH"
         pedido.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        pedido.setValue("text/csv", forHTTPHeaderField: "Content-Type")
+        pedido.setValue(tipo, forHTTPHeaderField: "Content-Type")
         pedido.httpBody = contenido
 
         let (datos, respuesta) = try await URLSession.shared.data(for: pedido)

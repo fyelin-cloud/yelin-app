@@ -39,10 +39,13 @@ final class Almacen {
     let urlTramas: URL
     let urlSesiones: URL
     let urlTramasDeRemo: URL
+    let urlResumen: URL
     private let urlSesionEnCurso: URL
 
     /// Todos los archivos que se suben a Drive.
-    var archivosParaSubir: [URL] { [urlPesadas, urlTramas, urlSesiones, urlTramasDeRemo] }
+    var archivosParaSubir: [URL] {
+        [urlResumen, urlPesadas, urlTramas, urlSesiones, urlTramasDeRemo]
+    }
 
     private let fechas: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -58,6 +61,7 @@ final class Almacen {
         urlTramas = documentos.appendingPathComponent("tramas.csv")
         urlSesiones = documentos.appendingPathComponent("sesiones-remo.csv")
         urlTramasDeRemo = documentos.appendingPathComponent("tramas-remo.csv")
+        urlResumen = documentos.appendingPathComponent("resumen.md")
         urlSesionEnCurso = documentos.appendingPathComponent("sesion-en-curso.json")
 
         crearSiFalta(urlPesadas, encabezado: "instante,gramos,kg")
@@ -186,6 +190,12 @@ final class Almacen {
 
     func borrarEnCurso() {
         try? FileManager.default.removeItem(at: urlSesionEnCurso)
+    }
+
+    // MARK: Resumen
+
+    func escribirResumen(_ texto: String) {
+        try? texto.write(to: urlResumen, atomically: true, encoding: .utf8)
     }
 
     // MARK: Tramas crudas
