@@ -97,6 +97,8 @@ struct PantallaRemo: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Paleta.fondo)
             .navigationTitle("Remo")
             .toolbar { EditButton() }
         }

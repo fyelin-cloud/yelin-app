@@ -10,7 +10,14 @@ struct PantallaHoy: View {
     @ObservedObject var sincronizador: Sincronizador
     @Binding var pestana: Int
 
-    private let columnas = [GridItem(.adaptive(minimum: 150), spacing: 14)]
+    @Environment(\.horizontalSizeClass) private var anchoDePantalla
+
+    /// Dos columnas en teléfono y tres en tablet: las seis fichas quedan
+    /// parejas en los dos casos, 2+2+2 o 3+3.
+    private var columnas: [GridItem] {
+        let cuantas = anchoDePantalla == .regular ? 3 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 14), count: cuantas)
+    }
 
     var body: some View {
         ZStack {

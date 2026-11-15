@@ -161,6 +161,8 @@ struct PantallaBalanza: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Paleta.fondo)
             .navigationTitle("Balanza")
             .toolbar { EditButton() }
             .task { Firma.estadoDelAviso { estadoDelAviso = $0 } }

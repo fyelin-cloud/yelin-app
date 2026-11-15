@@ -64,7 +64,9 @@ struct PantallaPeso: View {
                 }
             }
         }
-        .navigationTitle("Peso")
+        .scrollContentBackground(.hidden)
+            .background(Paleta.fondo)
+            .navigationTitle("Peso")
     }
 
     private var grafico: some View {
