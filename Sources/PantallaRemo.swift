@@ -12,14 +12,22 @@ struct PantallaRemo: View {
                     distancia
                 }
 
-                Section("En vivo") {
+                Section("Lo que manda la máquina") {
                     Fila("Ritmo por 500 m", enMinutos(remo.datos.ritmoPor500))
                     Fila("Paladas por minuto", sinNada(remo.datos.paladasPorMinuto))
                     Fila("Watts", sinNada(remo.datos.watts))
-                    Fila("Watts promedio", sinNada(remo.datos.wattsPromedio))
-                    Fila("Tiempo", enMinutos(remo.datos.tiempoSegundos))
                     Fila("Paladas totales", sinNada(remo.datos.paladasTotales))
-                    Fila("Calorías", sinNada(remo.datos.calorias))
+                }
+
+                Section("Lo que calcula la app") {
+                    Fila("Tiempo remando", enMinutos(Int(remo.segundosRemando)))
+                    Fila("Tiempo total", enMinutos(Int(remo.segundosTotales)))
+                    Fila("Watts promedio", String(format: "%.0f", remo.wattsPromedioCalculado))
+                    Button(role: .destructive) {
+                        remo.reiniciarSesion()
+                    } label: {
+                        Label("Reiniciar la sesión", systemImage: "arrow.counterclockwise")
+                    }
                 }
 
                 Section("Conexión") {
@@ -58,23 +66,16 @@ struct PantallaRemo: View {
 
     private var distancia: some View {
         VStack(spacing: 6) {
-            if let metros = remo.datos.distanciaMetros {
-                Text("\(metros)")
-                    .font(.system(size: 72, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-            } else {
-                Text("—")
-                    .font(.system(size: 72, weight: .bold, design: .rounded))
-                    .foregroundColor(.secondary)
-            }
+            let metros = Int(remo.distanciaCalculada)
+            Text("\(metros)")
+                .font(.system(size: 72, weight: .bold, design: .rounded))
+                .monospacedDigit()
             Text("metros")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
-            if let metros = remo.datos.distanciaMetros {
-                Text("faltan \(max(0, 10_000 - metros)) para los 10 000")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            Text("faltan \(max(0, 10_000 - metros)) para los 10 000")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)

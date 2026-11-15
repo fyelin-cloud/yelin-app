@@ -33,6 +33,15 @@ final class LectorDeRemo: NSObject, ObservableObject {
     @Published var cantidadDeTramas = 0
     @Published var nombreDelAparato = ""
 
+    /// La máquina no manda distancia ni tiempo: los calcula la app.
+    @Published var distanciaCalculada = 0.0
+    @Published var segundosRemando = 0.0
+    @Published var segundosTotales = 0.0
+    @Published var wattsPromedioCalculado = 0.0
+
+    private var instanteAnterior: Date?
+    private var sumaDeWattsPorSegundo = 0.0
+
     private(set) var tramasCrudas: [String] = []
 
     private var central: CBCentralManager!
@@ -41,6 +50,16 @@ final class LectorDeRemo: NSObject, ObservableObject {
     override init() {
         super.init()
         central = CBCentralManager(delegate: self, queue: .main)
+    }
+
+    func reiniciarSesion() {
+        distanciaCalculada = 0
+        segundosRemando = 0
+        segundosTotales = 0
+        wattsPromedioCalculado = 0
+        sumaDeWattsPorSegundo = 0
+        instanteAnterior = nil
+        datos = DatosDeRemo()
     }
 
     func buscarDeNuevo() {
@@ -119,6 +138,29 @@ final class LectorDeRemo: NSObject, ObservableObject {
         return d
     }
 
+    /// La máquina solo manda ritmo y potencia del momento. La distancia y el
+    /// tiempo se calculan acá: a un ritmo de X segundos cada 500 m, la
+    /// velocidad es 500/X metros por segundo.
+    private func acumular(_ d: DatosDeRemo) {
+        let ahora = Date()
+        defer { instanteAnterior = ahora }
+        guard let anterior = instanteAnterior else { return }
+
+        let transcurrido = ahora.timeIntervalSince(anterior)
+        guard transcurrido > 0, transcurrido < 5 else { return }
+
+        segundosTotales += transcurrido
+
+        guard let ritmo = d.ritmoPor500, ritmo > 0 else { return }
+        segundosRemando += transcurrido
+        distanciaCalculada += (500.0 / Double(ritmo)) * transcurrido
+
+        if let w = d.watts, w > 0 {
+            sumaDeWattsPorSegundo += Double(w) * transcurrido
+            wattsPromedioCalculado = sumaDeWattsPorSegundo / max(segundosRemando, 1)
+        }
+    }
+
     private func recibir(_ datosCrudos: Data) {
         let bytes = [UInt8](datosCrudos)
         let enHexa = bytes.map { String(format: "%02X", $0) }.joined(separator: " ")
@@ -128,6 +170,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
 
         if let interpretados = Self.interpretar(bytes) {
             datos = interpretados
+            acumular(interpretados)
             estado = "Leyendo"
         }
     }
@@ -168,6 +211,7 @@ extension LectorDeRemo: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         cantidadDeTramas = 0
         tramasCrudas.removeAll()
+        reiniciarSesion()
         estado = "Conectada. Buscando el canal de datos"
         peripheral.discoverServices([Self.servicio])
     }
