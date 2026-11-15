@@ -25,6 +25,8 @@ targets:
       properties:
         CFBundleDisplayName: Yelin App
         NSBluetoothAlwaysUsageDescription: La app usa Bluetooth para leer la balanza y la máquina de remo.
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
