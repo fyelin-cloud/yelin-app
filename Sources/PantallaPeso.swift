@@ -74,7 +74,7 @@ struct PantallaPeso: View {
                     x: .value("Día", punto.fecha),
                     y: .value("Kilos", punto.kg)
                 )
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Paleta.suave)
                 .symbolSize(40)
             }
             ForEach(promedio) { punto in
@@ -82,7 +82,7 @@ struct PantallaPeso: View {
                     x: .value("Día", punto.fecha),
                     y: .value("Promedio", punto.kg)
                 )
-                .foregroundStyle(.blue)
+                .foregroundStyle(Paleta.acento)
                 .interpolationMethod(.catmullRom)
                 .lineStyle(StrokeStyle(lineWidth: 2.5))
             }

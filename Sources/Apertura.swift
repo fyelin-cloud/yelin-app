@@ -113,6 +113,7 @@ struct Logo: View {
 struct PantallaDeApertura: View {
     let terminar: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var anchoDePantalla
     @State private var subio = false
     @State private var mostrarSaludo = false
     @State private var frase = ""
@@ -121,17 +122,17 @@ struct PantallaDeApertura: View {
         ZStack {
             Paleta.fondo.ignoresSafeArea()
 
-            VStack(spacing: 26) {
+            VStack(spacing: grande ? 34 : 26) {
                 Logo()
-                    .frame(width: 132)
+                    .frame(width: grande ? 196 : 132)
 
                 if mostrarSaludo {
-                    VStack(spacing: 12) {
+                    VStack(spacing: grande ? 14 : 12) {
                         Text(saludo)
-                            .font(.system(size: 22, weight: .semibold))
+                            .font(.system(size: grande ? 30 : 22, weight: .semibold))
                             .foregroundColor(Paleta.texto)
                         Text(frase)
-                            .font(.system(size: 15))
+                            .font(.system(size: grande ? 18 : 15))
                             .foregroundColor(Paleta.suave)
                             .multilineTextAlignment(.center)
                             .lineSpacing(2)
@@ -140,7 +141,7 @@ struct PantallaDeApertura: View {
                 }
             }
             .padding(.horizontal, 44)
-            .offset(y: subio ? -78 : 0)
+            .offset(y: subio ? (grande ? -104 : -78) : 0)
         }
         .contentShape(Rectangle())
         .onTapGesture { terminar() }
@@ -153,6 +154,9 @@ struct PantallaDeApertura: View {
             terminar()
         }
     }
+
+    /// En tablet todo va más grande; si no, el logo queda perdido en el medio.
+    private var grande: Bool { anchoDePantalla == .regular }
 
     private var saludo: String {
         let hora = Calendar.current.component(.hour, from: Date())
