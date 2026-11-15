@@ -19,12 +19,21 @@ enum Resumen {
         l.append("")
         l.append(contentsOf: bloqueDeRemo(sesiones))
         l.append("")
+        l.append(contentsOf: bloqueDeProteina(almacen.cargarConsumo()))
+        l.append("")
+        l.append(contentsOf: bloqueDeGastos(almacen))
+        l.append("")
+        l.append(contentsOf: bloqueDeNotas(almacen.cargarNotas()))
+        l.append("")
         l.append("## Archivos")
         l.append("")
         l.append("- `pesadas.csv` — una línea por pesada guardada")
         l.append("- `tramas.csv` — todo lo crudo que mandó la balanza")
         l.append("- `sesiones-remo.csv` — una línea por sesión de remo")
         l.append("- `tramas-remo.csv` — todo lo crudo que mandó la máquina")
+        l.append("- `consumo.csv` — scoops de proteína con su hora")
+        l.append("- `notas.csv` — las notas, con fecha y si están marcadas")
+        l.append("- `gastos.csv` — monto, categoría y detalle de cada gasto")
         l.append("")
         return l.joined(separator: "\n")
     }
@@ -90,6 +99,83 @@ enum Resumen {
         l.append("Nota: la distancia y el ritmo los calcula la app a partir del ritmo")
         l.append("instantáneo que informa la máquina, que no manda distancia. Falta")
         l.append("calibrarlos contra el display del aparato.")
+        return l
+    }
+
+    private static func bloqueDeProteina(_ consumo: [Consumo]) -> [String] {
+        var l = ["## Proteína", ""]
+        guard !consumo.isEmpty else {
+            l.append("Todavía no hay nada anotado.")
+            return l
+        }
+        let calendario = Calendar.current
+        let hoy = consumo.filter { calendario.isDateInToday($0.instante) }
+            .reduce(0.0) { $0 + $1.cantidad }
+        l.append(String(format: "- Hoy: %g scoops", hoy))
+
+        let desde = Date().addingTimeInterval(-7 * 86_400)
+        let semana = consumo.filter { $0.instante >= desde }
+        let total = semana.reduce(0.0) { $0 + $1.cantidad }
+        l.append(String(format: "- Últimos 7 días: %g scoops (%.1f por día)", total, total / 7))
+        if let ultimo = consumo.max(by: { $0.instante < $1.instante }) {
+            l.append("- Último: \(fechaLarga(ultimo.instante))")
+        }
+        return l
+    }
+
+    private static func bloqueDeGastos(_ almacen: Almacen) -> [String] {
+        var l = ["## Gastos", ""]
+        let todos = almacen.cargarGastos()
+        guard !todos.isEmpty else {
+            l.append("Todavía no hay gastos anotados.")
+            return l
+        }
+        let calendario = Calendar.current
+        func delMes(_ atras: Int) -> [Gasto] {
+            guard let base = calendario.date(byAdding: .month, value: -atras, to: Date()) else { return [] }
+            let m = calendario.component(.month, from: base)
+            let a = calendario.component(.year, from: base)
+            return todos.filter {
+                calendario.component(.month, from: $0.instante) == m
+                    && calendario.component(.year, from: $0.instante) == a
+            }
+        }
+        let esteMes = delMes(0), mesPasado = delMes(1)
+        let total = esteMes.reduce(0.0) { $0 + $1.monto }
+        l.append(String(format: "- Este mes: $%.0f en %d gastos", total, esteMes.count))
+        if !mesPasado.isEmpty {
+            let antes = mesPasado.reduce(0.0) { $0 + $1.monto }
+            l.append(String(format: "- Mes pasado: $%.0f", antes))
+        }
+        var porCategoria: [String: Double] = [:]
+        for g in esteMes { porCategoria[g.categoria, default: 0] += g.monto }
+        for (categoria, monto) in porCategoria.sorted(by: { $0.value > $1.value }).prefix(5) {
+            l.append(String(format: "  - %@: $%.0f", categoria, monto))
+        }
+        return l
+    }
+
+    private static func bloqueDeNotas(_ notas: [Nota]) -> [String] {
+        var l = ["## Notas", ""]
+        guard !notas.isEmpty else {
+            l.append("Todavía no hay notas.")
+            return l
+        }
+        l.append("- Total: \(notas.count)")
+        let importantes = notas.filter(\.importante)
+        if !importantes.isEmpty {
+            l.append("- Marcadas como importantes:")
+            for n in importantes.prefix(8) {
+                l.append("  - \(n.titulo) (\(fechaCorta(n.instante)))")
+            }
+        }
+        let ultimas = notas.sorted { $0.instante > $1.instante }.prefix(5)
+        l.append("- Últimas:")
+        for n in ultimas {
+            l.append("  - \(n.titulo) (\(fechaCorta(n.instante)))")
+        }
+        l.append("")
+        l.append("El texto completo de cada nota está en `notas.csv`.")
         return l
     }
 
