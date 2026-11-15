@@ -35,6 +35,28 @@ struct PantallaBalanza: View {
                     }
                 }
 
+                Section("Google Drive") {
+                    Fila("Estado", balanza.estadoDeDrive)
+                    if balanza.driveConectado {
+                        Button {
+                            Task { await balanza.subirADrive() }
+                        } label: {
+                            Label("Subir ahora", systemImage: "arrow.up.doc")
+                        }
+                        Button(role: .destructive) {
+                            balanza.desconectarDrive()
+                        } label: {
+                            Label("Desconectar Drive", systemImage: "xmark.circle")
+                        }
+                    } else {
+                        Button {
+                            balanza.conectarConDrive()
+                        } label: {
+                            Label("Conectar con Google Drive", systemImage: "link")
+                        }
+                    }
+                }
+
                 Section("Salud de Apple") {
                     Fila("Permiso", balanza.estadoDeSalud)
                     Button {

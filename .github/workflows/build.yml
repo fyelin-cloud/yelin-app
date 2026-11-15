@@ -24,6 +24,26 @@ jobs:
       - name: Instalar XcodeGen y ldid
         run: brew install xcodegen ldid
 
+      - name: Insertar el identificador de Google desde el secreto
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        run: |
+          python3 - <<'PY'
+          import os
+          cliente = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+          ficha = open("project.yml").read()
+          if cliente:
+              esquema = "com.googleusercontent.apps." + cliente.replace(".apps.googleusercontent.com", "")
+              ficha = ficha.replace("__GOOGLE_CLIENT_ID__", cliente)
+              ficha = ficha.replace("__GOOGLE_URL_SCHEME__", esquema)
+              print("Identificador de Google insertado")
+          else:
+              ficha = ficha.replace("__GOOGLE_CLIENT_ID__", "")
+              ficha = ficha.replace("__GOOGLE_URL_SCHEME__", "com.yelinapp.sin-google")
+              print("AVISO: no hay secreto GOOGLE_CLIENT_ID; la app queda sin Drive")
+          open("project.yml", "w").write(ficha)
+          PY
+
       - name: Armar el proyecto de Xcode
         run: xcodegen generate
 

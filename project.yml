@@ -28,6 +28,10 @@ targets:
         CFBundleDisplayName: Yelin App
         NSBluetoothAlwaysUsageDescription: La app usa Bluetooth para leer la balanza y la máquina de remo.
         NSHealthUpdateUsageDescription: La app anota tu peso en Salud para que Google Health lo levante.
+        GIDClientID: __GOOGLE_CLIENT_ID__
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - __GOOGLE_URL_SCHEME__
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
