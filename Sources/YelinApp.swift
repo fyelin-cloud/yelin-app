@@ -9,6 +9,7 @@ struct AplicacionYelin: App {
     @State private var abriendo = true
 
     init() {
+        Firma.registrar()
         let compartido = Sincronizador()
         _sincronizador = StateObject(wrappedValue: compartido)
         _balanza = StateObject(wrappedValue: LectorDeBalanza(sincronizador: compartido))
@@ -40,6 +41,7 @@ struct AplicacionYelin: App {
 struct PantallaBalanza: View {
     @ObservedObject var balanza: LectorDeBalanza
     @ObservedObject var sincronizador: Sincronizador
+    @State private var estadoDelAviso = "Sin activar"
 
     var body: some View {
         NavigationView {
@@ -133,11 +135,22 @@ struct PantallaBalanza: View {
                                 .font(.system(.footnote, design: .monospaced))
                         }
                     }
+                }
+
+                Section("La app") {
                     Fila("Versión", Info.version)
+                    Fila("Firma", Firma.resumen)
+                    Fila("Aviso de vencimiento", estadoDelAviso)
+                    Button {
+                        Firma.programar { estadoDelAviso = $0 }
+                    } label: {
+                        Label("Avisarme antes de que venza", systemImage: "bell")
+                    }
                 }
             }
             .navigationTitle("Balanza")
             .toolbar { EditButton() }
+            .task { Firma.estadoDelAviso { estadoDelAviso = $0 } }
         }
         .navigationViewStyle(.stack)
     }
