@@ -68,44 +68,40 @@ enum Frases {
     }
 }
 
-/// El logo de la app: la Y y el 5 dibujados en una grilla de píxeles.
+/// El logo de la app: la opción 82 del diseño, "fondo oscuro, Y5 en cursiva
+/// azul".
 ///
-/// Es el logo que se eligió en el diseño. Va dibujado con rectángulos en vez
-/// de ser una imagen, así se adapta a cualquier tamaño sin perder el filo y
-/// se le pueden cambiar los colores según el fondo.
+/// Usa Inter ExtraBold Italic, que es la tipografía con la que se diseñó y
+/// que viaja incrustada en la app. Las proporciones salen del diseño
+/// original: el redondeo es 29/130 del lado, la letra 58/130, y entre la Y y
+/// el 5 hay -0,05 em.
 struct Logo: View {
 
-    var colorY: Color = Paleta.acento
-    var colorCinco: Color = Paleta.texto
+    var tamano: CGFloat
 
-    /// Celdas de la grilla: x, y, ancho, alto.
-    private static let celdasY = [(1, 1, 2, 2), (5, 1, 2, 2),
-                                  (2, 3, 2, 2), (4, 3, 2, 2),
-                                  (3, 5, 2, 2), (3, 7, 2, 2), (3, 9, 2, 2)]
-    private static let celdasCinco = [(8, 1, 5, 2), (8, 3, 2, 2),
-                                      (8, 5, 5, 2), (11, 7, 2, 2), (8, 9, 5, 2)]
+    static let tipografia = "Inter-ExtraBoldItalic"
 
-    /// El dibujo ocupa 12 celdas de ancho por 10 de alto.
-    static let proporcion: CGFloat = 12.0 / 10.0
+    private var redondeo: CGFloat { tamano * 29 / 130 }
+    private var cuerpo: CGFloat { tamano * 58 / 130 }
 
     var body: some View {
-        Canvas { contexto, tamano in
-            let celda = tamano.width / 12
-            pintar(Self.celdasY, color: colorY, celda: celda, en: contexto)
-            pintar(Self.celdasCinco, color: colorCinco, celda: celda, en: contexto)
-        }
-        .aspectRatio(Self.proporcion, contentMode: .fit)
+        RoundedRectangle(cornerRadius: redondeo, style: .continuous)
+            .fill(Paleta.superficie)
+            .overlay(letras)
+            .overlay(
+                RoundedRectangle(cornerRadius: redondeo, style: .continuous)
+                    .stroke(Paleta.borde, lineWidth: 1)
+            )
+            .frame(width: tamano, height: tamano)
     }
 
-    private func pintar(_ celdas: [(Int, Int, Int, Int)], color: Color,
-                        celda: CGFloat, en contexto: GraphicsContext) {
-        for (x, y, ancho, alto) in celdas {
-            let marco = CGRect(x: CGFloat(x - 1) * celda,
-                               y: CGFloat(y - 1) * celda,
-                               width: CGFloat(ancho) * celda,
-                               height: CGFloat(alto) * celda)
-            contexto.fill(Path(marco), with: .color(color))
+    private var letras: some View {
+        HStack(spacing: -cuerpo * 0.05) {
+            Text("Y")
+            Text("5")
         }
+        .font(.custom(Self.tipografia, size: cuerpo))
+        .foregroundColor(Paleta.acento)
     }
 }
 
@@ -123,8 +119,7 @@ struct PantallaDeApertura: View {
             Paleta.fondo.ignoresSafeArea()
 
             VStack(spacing: grande ? 34 : 26) {
-                Logo()
-                    .frame(width: grande ? 196 : 132)
+                Logo(tamano: grande ? 168 : 116)
 
                 if mostrarSaludo {
                     VStack(spacing: grande ? 14 : 12) {

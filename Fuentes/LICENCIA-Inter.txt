@@ -1,0 +1,13 @@
+Inter — tipografía usada en el logo de esta app.
+
+Copyright 2016-2023 The Inter Project Authors
+https://github.com/rsms/inter
+
+Distribuida bajo la SIL Open Font License, versión 1.1, que permite usarla,
+incrustarla y redistribuirla, incluso dentro de software. El texto completo de
+la licencia está en:
+
+https://openfontlicense.org
+
+El archivo incluido acá, Inter-ExtraBoldItalic.otf, se usa únicamente para
+dibujar el logo "Y5".
