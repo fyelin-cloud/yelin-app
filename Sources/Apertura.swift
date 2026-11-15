@@ -68,18 +68,43 @@ enum Frases {
     }
 }
 
-/// El logo de la app.
+/// El logo de la app: la Y y el 5 dibujados en una grilla de píxeles.
+///
+/// Es el logo que se eligió en el diseño. Va dibujado con rectángulos en vez
+/// de ser una imagen, así se adapta a cualquier tamaño sin perder el filo y
+/// se le pueden cambiar los colores según el fondo.
 struct Logo: View {
+
+    var colorY: Color = Paleta.acento
+    var colorCinco: Color = Paleta.texto
+
+    /// Celdas de la grilla: x, y, ancho, alto.
+    private static let celdasY = [(1, 1, 2, 2), (5, 1, 2, 2),
+                                  (2, 3, 2, 2), (4, 3, 2, 2),
+                                  (3, 5, 2, 2), (3, 7, 2, 2), (3, 9, 2, 2)]
+    private static let celdasCinco = [(8, 1, 5, 2), (8, 3, 2, 2),
+                                      (8, 5, 5, 2), (11, 7, 2, 2), (8, 9, 5, 2)]
+
+    /// El dibujo ocupa 12 celdas de ancho por 10 de alto.
+    static let proporcion: CGFloat = 12.0 / 10.0
+
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(LinearGradient(colors: [Color(red: 0.15, green: 0.39, blue: 0.92),
-                                              Color(red: 0.08, green: 0.72, blue: 0.65)],
-                                     startPoint: .topLeading,
-                                     endPoint: .bottomTrailing))
-            Text("Y")
-                .font(.system(size: 52, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+        Canvas { contexto, tamano in
+            let celda = tamano.width / 12
+            pintar(Self.celdasY, color: colorY, celda: celda, en: contexto)
+            pintar(Self.celdasCinco, color: colorCinco, celda: celda, en: contexto)
+        }
+        .aspectRatio(Self.proporcion, contentMode: .fit)
+    }
+
+    private func pintar(_ celdas: [(Int, Int, Int, Int)], color: Color,
+                        celda: CGFloat, en contexto: GraphicsContext) {
+        for (x, y, ancho, alto) in celdas {
+            let marco = CGRect(x: CGFloat(x - 1) * celda,
+                               y: CGFloat(y - 1) * celda,
+                               width: CGFloat(ancho) * celda,
+                               height: CGFloat(alto) * celda)
+            contexto.fill(Path(marco), with: .color(color))
         }
     }
 }
@@ -94,35 +119,36 @@ struct PantallaDeApertura: View {
 
     var body: some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
+            Paleta.fondo.ignoresSafeArea()
 
-            VStack(spacing: 22) {
+            VStack(spacing: 26) {
                 Logo()
-                    .frame(width: 92, height: 92)
+                    .frame(width: 132)
 
                 if mostrarSaludo {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 12) {
                         Text(saludo)
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(Paleta.texto)
                         Text(frase)
-                            .font(.callout)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 15))
+                            .foregroundColor(Paleta.suave)
                             .multilineTextAlignment(.center)
+                            .lineSpacing(2)
                     }
                     .transition(.opacity)
                 }
             }
-            .padding(.horizontal, 40)
-            .offset(y: subio ? -70 : 0)
+            .padding(.horizontal, 44)
+            .offset(y: subio ? -78 : 0)
         }
         .contentShape(Rectangle())
         .onTapGesture { terminar() }
         .task {
             frase = Frases.proxima()
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) { subio = true }
-            try? await Task.sleep(nanoseconds: 320_000_000)
-            withAnimation(.easeOut(duration: 0.28)) { mostrarSaludo = true }
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) { subio = true }
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            withAnimation(.easeOut(duration: 0.3)) { mostrarSaludo = true }
             try? await Task.sleep(nanoseconds: 1_800_000_000)
             terminar()
         }

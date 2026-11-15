@@ -7,6 +7,7 @@ struct AplicacionYelin: App {
     @StateObject private var remo: LectorDeRemo
 
     @State private var abriendo = true
+    @State private var pestana = 0
 
     init() {
         Firma.registrar()
@@ -19,12 +20,19 @@ struct AplicacionYelin: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                TabView {
+                TabView(selection: $pestana) {
+                    PantallaHoy(balanza: balanza, remo: remo,
+                                sincronizador: sincronizador, pestana: $pestana)
+                        .tabItem { Label("Hoy", systemImage: "square.grid.2x2") }
+                        .tag(0)
                     PantallaBalanza(balanza: balanza, sincronizador: sincronizador)
                         .tabItem { Label("Balanza", systemImage: "scalemass") }
+                        .tag(1)
                     PantallaRemo(remo: remo)
                         .tabItem { Label("Remo", systemImage: "figure.rower") }
+                        .tag(2)
                 }
+                .tint(Paleta.acento)
 
                 if abriendo {
                     PantallaDeApertura {
@@ -34,6 +42,7 @@ struct AplicacionYelin: App {
                     .zIndex(1)
                 }
             }
+            .preferredColorScheme(.dark)
         }
     }
 }
