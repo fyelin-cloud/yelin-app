@@ -5,8 +5,18 @@ import Charts
 struct PantallaPeso: View {
     let pesadas: [Pesada]
 
-    private var puntos: [PuntoDePeso] { Analisis.porDia(pesadas) }
-    private var promedio: [PuntoDePeso] { Analisis.promedioMovil(puntos) }
+    private let puntos: [PuntoDePeso]
+    private let promedio: [PuntoDePeso]
+    private let sospechosas: Set<UUID>
+
+    init(pesadas: [Pesada]) {
+        self.pesadas = pesadas
+        let porDia = Analisis.porDia(pesadas)
+        let media = Analisis.promedioMovil(porDia)
+        self.puntos = porDia
+        self.promedio = media
+        self.sospechosas = Analisis.sospechosas(porDia, promedio: media)
+    }
 
     var body: some View {
         List {
@@ -56,8 +66,6 @@ struct PantallaPeso: View {
         }
         .navigationTitle("Peso")
     }
-
-    private var sospechosas: Set<UUID> { Analisis.sospechosas(puntos) }
 
     private var grafico: some View {
         Chart {

@@ -61,6 +61,8 @@ final class LectorDeRemo: NSObject, ObservableObject {
     private var sumaDeWattsPorSegundo = 0.0
 
     private(set) var tramasCrudas: [String] = []
+    private var tramasPendientes: [(instante: Date, trama: String)] = []
+    private var ultimoGuardadoEnCurso = Date.distantPast
 
     init(sincronizador: Sincronizador) {
         self.sincronizador = sincronizador
@@ -109,6 +111,12 @@ final class LectorDeRemo: NSObject, ObservableObject {
 
     // MARK: Sesiones
 
+    private func volcarTramas() {
+        let pendientes = tramasPendientes
+        tramasPendientes.removeAll()
+        almacen.agregarTramasDeRemo(pendientes)
+    }
+
     private func reiniciarAcumuladores() {
         distanciaCalculada = 0
         segundosRemando = 0
@@ -141,6 +149,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
     }
 
     private func cerrarSesion(motivo: String) {
+        volcarTramas()
         guard let sesion = sesionActual(hasta: Date()) else { return }
         inicioDeSesion = nil
         sesionAbierta = false
@@ -263,7 +272,11 @@ final class LectorDeRemo: NSObject, ObservableObject {
             }
         }
 
-        if let sesion = sesionActual(hasta: ahora) {
+        // Se anota cada cinco segundos, no en cada trama: alcanza para no
+        // perder nada que importe si la app se cierra de golpe.
+        if ahora.timeIntervalSince(ultimoGuardadoEnCurso) > 5,
+           let sesion = sesionActual(hasta: ahora) {
+            ultimoGuardadoEnCurso = ahora
             almacen.guardarEnCurso(sesion)
         }
 
@@ -281,7 +294,9 @@ final class LectorDeRemo: NSObject, ObservableObject {
         ultimaTrama = enHexa
         tramasCrudas.append(enHexa)
         cantidadDeTramas = tramasCrudas.count
-        almacen.agregarTramaDeRemo(enHexa, instante: ahora)
+
+        tramasPendientes.append((ahora, enHexa))
+        if tramasPendientes.count >= 25 { volcarTramas() }
 
         if let interpretados = Self.interpretar(bytes) {
             datos = interpretados
@@ -339,8 +354,12 @@ extension LectorDeRemo: CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager,
                         didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        if sesionAbierta { cerrarSesion(motivo: "se cortó la conexión") }
-        else { estado = "En espera. Prendé la máquina y se conecta sola" }
+        if sesionAbierta {
+            cerrarSesion(motivo: "se cortó la conexión")
+        } else {
+            volcarTramas()
+            estado = "En espera. Prendé la máquina y se conecta sola"
+        }
         central.connect(peripheral, options: nil)
     }
 }

@@ -72,8 +72,9 @@ enum Analisis {
     }
 
     /// Pesadas que se alejan mucho del promedio de su momento.
-    static func sospechosas(_ puntos: [PuntoDePeso], margenKg: Double = 2.0) -> Set<UUID> {
-        let promedio = promedioMovil(puntos)
+    static func sospechosas(_ puntos: [PuntoDePeso],
+                            promedio: [PuntoDePeso],
+                            margenKg: Double = 2.0) -> Set<UUID> {
         var raras: Set<UUID> = []
         for (punto, media) in zip(puntos, promedio) where abs(punto.kg - media.kg) > margenKg {
             raras.insert(punto.id)

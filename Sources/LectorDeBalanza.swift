@@ -145,7 +145,6 @@ final class LectorDeBalanza: NSObject, ObservableObject {
         pesadas.insert(pesada, at: 0)
         ultimaGuardada = pesada
         estado = "Guardado"
-        mandarASalud(pesada)
         sincronizador.subirEnSegundoPlano()
     }
 

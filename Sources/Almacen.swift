@@ -208,6 +208,18 @@ final class Almacen {
         agregar("\(fechas.string(from: instante)),\(enHexa)", a: urlTramasDeRemo)
     }
 
+    /// Vuelca varias tramas de una, abriendo el archivo una sola vez.
+    ///
+    /// En una sesión larga llegan miles de tramas; escribir una por una sería
+    /// abrir y cerrar el archivo miles de veces.
+    func agregarTramasDeRemo(_ tandas: [(instante: Date, trama: String)]) {
+        guard !tandas.isEmpty else { return }
+        let texto = tandas
+            .map { "\(fechas.string(from: $0.instante)),\($0.trama)" }
+            .joined(separator: "\n")
+        agregar(texto, a: urlTramasDeRemo)
+    }
+
     // MARK: Archivos
 
     private func crearSiFalta(_ archivo: URL, encabezado: String) {

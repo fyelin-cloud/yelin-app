@@ -94,7 +94,7 @@ struct PantallaBalanza: View {
                     }
                 }
 
-                Section("Salud de Apple") {
+                Section {
                     Fila("Permiso", balanza.estadoDeSalud)
                     Button {
                         balanza.pedirPermisoDeSalud()
@@ -105,10 +105,14 @@ struct PantallaBalanza: View {
                         Button {
                             balanza.mandarASalud(ultima)
                         } label: {
-                            Label(String(format: "Mandar %.2f kg a Salud", ultima.kg),
+                            Label(String(format: "Probar con %.2f kg", ultima.kg),
                                   systemImage: "arrow.up.heart")
                         }
                     }
+                } header: {
+                    Text("Salud de Apple")
+                } footer: {
+                    Text("No funciona con la cuenta gratuita de Apple: al instalar, AltStore firma la app sin el permiso de Salud. Los botones quedan por si en algún momento pasás a una cuenta paga.")
                 }
 
                 Section("Archivos") {
