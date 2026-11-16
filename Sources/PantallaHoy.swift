@@ -163,11 +163,26 @@ struct PantallaHoy: View {
     // MARK: Pie
 
     private var pie: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LineaDeEstado(simbolo: "arrow.up.circle", texto: sincronizador.estado)
-            LineaDeEstado(simbolo: "signature", texto: "Firma: " + Firma.resumen.lowercased())
-            LineaDeEstado(simbolo: "number", texto: Info.version)
+        NavigationLink {
+            PantallaAjustes(sincronizador: sincronizador, balanza: balanza, remo: remo)
+        } label: {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    LineaDeEstado(simbolo: "arrow.up.circle", texto: sincronizador.estado)
+                    LineaDeEstado(simbolo: "signature",
+                                  texto: "Firma: " + Firma.resumen.lowercased())
+                    LineaDeEstado(simbolo: "number", texto: Info.version)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Paleta.suave)
+                    .padding(.top, 2)
+            }
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
         .padding(.top, 4)
     }
 }

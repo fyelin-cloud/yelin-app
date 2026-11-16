@@ -62,45 +62,18 @@ struct PantallaRemo: View {
                     }
                 }
 
-                Section("Conexión") {
-                    Fila("Estado", remo.estado)
-                    if !remo.nombreDelAparato.isEmpty {
-                        Fila("Aparato", remo.nombreDelAparato)
-                    }
-                    Button {
-                        remo.buscarDeNuevo()
-                    } label: {
-                        Label("Buscar la máquina de nuevo", systemImage: "arrow.clockwise")
-                    }
-                }
-
-                Section("Archivos y tramas") {
-                    Fila("Tramas recibidas", "\(remo.cantidadDeTramas)")
-                    if !remo.ultimaTrama.isEmpty {
-                        Text(remo.ultimaTrama)
-                            .font(.system(.footnote, design: .monospaced))
-                            .foregroundColor(.secondary)
-                    }
-                    Button {
-                        UIPasteboard.general.string = remo.textoParaCopiar()
-                        copiado = true
-                    } label: {
-                        Label(copiado ? "Copiado" : "Copiar las tramas de ahora",
-                              systemImage: "doc.on.doc")
-                    }
-                    .disabled(remo.cantidadDeTramas == 0)
-                    ShareLink(item: remo.almacen.urlSesiones) {
-                        Label("Compartir las sesiones", systemImage: "square.and.arrow.up")
-                    }
-                    ShareLink(item: remo.almacen.urlTramasDeRemo) {
-                        Label("Compartir todas las tramas", systemImage: "square.and.arrow.up")
-                    }
-                }
             }
             .scrollContentBackground(.hidden)
             .background(Paleta.fondo)
             .navigationTitle("Remo")
-            .toolbar { EditButton() }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) { EditButton() }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { remo.buscarDeNuevo() } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+            }
         }
         .navigationViewStyle(.stack)
     }
