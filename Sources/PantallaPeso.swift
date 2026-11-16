@@ -19,54 +19,66 @@ struct PantallaPeso: View {
     }
 
     var body: some View {
-        List {
+        Pantalla(titulo: "Peso", bajada: bajada) {
             if puntos.count < 2 {
-                Section {
-                    Text("Con una sola pesada no hay nada que graficar. Pesate unos días y acá va a aparecer la tendencia.")
-                        .foregroundColor(.secondary)
+                Bloque {
+                    Vacio("Con una sola pesada no hay nada que graficar. Pesate unos "
+                          + "días y acá va a aparecer la tendencia.")
                 }
             } else {
-                Section("Últimos días") {
+                Bloque(titulo: "Últimos días",
+                       pie: "Los puntos son cada día; la línea es el promedio de 7 días, "
+                          + "que es lo que conviene mirar.") {
                     grafico
-                        .frame(height: 240)
-                        .padding(.vertical, 8)
+                        .frame(height: 230)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 16)
                 }
             }
 
-            Section("Números") {
-                if let ultimo = puntos.last {
-                    Fila("Último", String(format: "%.2f kg", ultimo.kg))
-                }
-                if let media = promedio.last {
-                    Fila("Promedio de 7 días", String(format: "%.2f kg", media.kg))
-                }
-                Fila("Cambio en 7 días", conSigno(Analisis.cambio(puntos, dias: 7)))
-                Fila("Cambio en 30 días", conSigno(Analisis.cambio(puntos, dias: 30)))
-                Fila("Tendencia", tendencia)
-                Fila("Días con registro", "\(puntos.count)")
-                Fila("Pesadas en total", "\(pesadas.count)")
+            Bloque(titulo: "Números") {
+                Filas(numeros)
             }
 
             if !sospechosas.isEmpty {
-                Section("Para mirar") {
-                    Text("Hay \(sospechosas.count) día(s) que se alejan más de 2 kg del promedio. Puede ser una pesada mal tomada.")
-                        .font(.callout)
-                        .foregroundColor(.secondary)
-                    ForEach(puntos.filter { sospechosas.contains($0.id) }) { punto in
-                        HStack {
-                            Text(String(format: "%.2f kg", punto.kg)).monospacedDigit()
-                            Spacer()
-                            Text(punto.fecha.formatted(date: .abbreviated, time: .omitted))
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                        }
+                Bloque(titulo: "Para mirar",
+                       pie: "Se alejan más de 2 kg del promedio. Puede ser una pesada "
+                          + "mal tomada.") {
+                    ForEach(enumerar(puntos.filter { sospechosas.contains($0.id) })) { fila in
+                        if fila.puesto > 0 { Linea() }
+                        Fila(Fechas.conAnio(fila.valor.fecha),
+                             String(format: "%.2f kg", fila.valor.kg))
                     }
                 }
             }
         }
-        .scrollContentBackground(.hidden)
-            .background(Paleta.fondo)
-            .navigationTitle("Peso")
+        .navigationTitle("Peso")
+    }
+
+    private var numeros: [(String, String)] {
+        var lista: [(String, String)] = []
+        if let ultimo = puntos.last {
+            lista.append(("Último", String(format: "%.2f kg", ultimo.kg)))
+        }
+        if let media = promedio.last {
+            lista.append(("Promedio de 7 días", String(format: "%.2f kg", media.kg)))
+        }
+        lista.append(("Cambio en 7 días", conSigno(Analisis.cambio(puntos, dias: 7))))
+        lista.append(("Cambio en 30 días", conSigno(Analisis.cambio(puntos, dias: 30))))
+        lista.append(("Tendencia", tendencia))
+        lista.append(("Días con registro", "\(puntos.count)"))
+        lista.append(("Pesadas en total", "\(pesadas.count)"))
+        return lista
+    }
+
+    private var bajada: String {
+        guard puntos.count >= 2 else { return "Todavía sin tendencia" }
+        guard let porSemana = Analisis.tendenciaPorSemana(puntos) else {
+            return "\(puntos.count) días con registro"
+        }
+        if abs(porSemana) < 0.05 { return "Estable en las últimas semanas" }
+        return String(format: "%@ %.2f kg por semana",
+                      porSemana > 0 ? "Subiendo" : "Bajando", abs(porSemana))
     }
 
     private var grafico: some View {
@@ -76,8 +88,8 @@ struct PantallaPeso: View {
                     x: .value("Día", punto.fecha),
                     y: .value("Kilos", punto.kg)
                 )
-                .foregroundStyle(Paleta.suave)
-                .symbolSize(40)
+                .foregroundStyle(Paleta.suave.opacity(0.75))
+                .symbolSize(32)
             }
             ForEach(promedio) { punto in
                 LineMark(
@@ -86,12 +98,25 @@ struct PantallaPeso: View {
                 )
                 .foregroundStyle(Paleta.acento)
                 .interpolationMethod(.catmullRom)
-                .lineStyle(StrokeStyle(lineWidth: 2.5))
+                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
             }
         }
         .chartYScale(domain: Analisis.rangoVertical(puntos))
         .chartYAxis {
-            AxisMarks(position: .leading)
+            AxisMarks(position: .leading) { valor in
+                AxisGridLine().foregroundStyle(Paleta.borde)
+                AxisValueLabel()
+                    .font(.system(size: 10))
+                    .foregroundStyle(Paleta.suave)
+            }
+        }
+        .chartXAxis {
+            AxisMarks { valor in
+                AxisGridLine().foregroundStyle(Paleta.borde.opacity(0.5))
+                AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                    .font(.system(size: 10))
+                    .foregroundStyle(Paleta.suave)
+            }
         }
     }
 

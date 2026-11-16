@@ -1,97 +1,98 @@
 import SwiftUI
+import UIKit
 
 /// Todo lo que no se mira todos los días: la conexión con Drive, los
 /// archivos, el estado de los aparatos y la vida de la app.
 ///
-/// Está acá para que las pantallas de Balanza y Remo queden limpias y solo
-/// muestren lo que importa en el momento de usarlas.
+/// Está acá para que las pantallas de datos queden limpias y solo muestren
+/// lo que importa en el momento de usarlas.
 struct PantallaAjustes: View {
     @ObservedObject var sincronizador: Sincronizador
     @ObservedObject var balanza: LectorDeBalanza
     @ObservedObject var remo: LectorDeRemo
+    @ObservedObject var pesas: Pesas
 
     @State private var estadoDelAviso = "Sin activar"
 
     private var almacen: Almacen { sincronizador.almacen }
 
     var body: some View {
-        List {
-            Section("Google Drive") {
+        Pantalla(titulo: "Ajustes") {
+            Bloque(titulo: "Google Drive",
+                   pie: "Cada cosa que anotás se sube sola. No hay botón de guardar.") {
                 Fila("Estado", sincronizador.estado)
+                Linea()
                 if sincronizador.conectado {
-                    Button {
+                    Accion(texto: "Subir todo ahora", simbolo: "arrow.up.doc") {
                         Task { await sincronizador.subirTodo() }
-                    } label: {
-                        Label("Subir todo ahora", systemImage: "arrow.up.doc")
                     }
-                    Button(role: .destructive) {
+                    Linea()
+                    Accion(texto: "Desconectar Drive", simbolo: "xmark.circle",
+                           destructiva: true) {
                         sincronizador.desconectar()
-                    } label: {
-                        Label("Desconectar Drive", systemImage: "xmark.circle")
                     }
                 } else {
-                    Button {
+                    Accion(texto: "Conectar con Google Drive", simbolo: "link") {
                         sincronizador.conectar()
-                    } label: {
-                        Label("Conectar con Google Drive", systemImage: "link")
                     }
                 }
             }
 
-            Section("Los aparatos") {
+            Bloque(titulo: "Los aparatos") {
                 Fila("Balanza", balanza.estado)
-                Button {
+                Linea()
+                Accion(texto: "Buscar la balanza de nuevo", simbolo: "arrow.clockwise") {
                     balanza.buscarDeNuevo()
-                } label: {
-                    Label("Buscar la balanza de nuevo", systemImage: "arrow.clockwise")
                 }
+                Linea()
                 Fila("Remo", remo.estado)
-                Button {
+                Linea()
+                Accion(texto: "Buscar la máquina de nuevo", simbolo: "arrow.clockwise") {
                     remo.buscarDeNuevo()
-                } label: {
-                    Label("Buscar la máquina de nuevo", systemImage: "arrow.clockwise")
                 }
             }
 
-            Section("La app") {
+            Bloque(titulo: "Lo que hay guardado") {
+                Fila("Pesadas", "\(balanza.pesadas.count)")
+                Linea()
+                Fila("Sesiones de remo", "\(remo.sesiones.count)")
+                Linea()
+                Fila("Series de pesas", "\(pesas.series.count)")
+            }
+
+            Bloque(titulo: "La app") {
                 Fila("Versión", Info.version)
+                Linea()
                 Fila("Firma", Firma.resumen)
+                Linea()
                 Fila("Aviso de vencimiento", estadoDelAviso)
-                Button {
+                Linea()
+                Accion(texto: "Avisarme antes de que venza", simbolo: "bell") {
                     Firma.programar { estadoDelAviso = $0 }
-                } label: {
-                    Label("Avisarme antes de que venza", systemImage: "bell")
                 }
             }
 
-            Section {
-                NavigationLink {
+            Bloque {
+                Navega(texto: "Archivos", simbolo: "folder") {
                     PantallaArchivos(almacen: almacen)
-                } label: {
-                    Label("Archivos", systemImage: "folder")
                 }
-                NavigationLink {
+                Linea()
+                Navega(texto: "Tramas crudas", simbolo: "waveform") {
                     PantallaTramas(balanza: balanza, remo: remo)
-                } label: {
-                    Label("Tramas crudas", systemImage: "waveform")
                 }
             }
 
-            Section {
+            Bloque(titulo: "Salud de Apple",
+                   pie: "No funciona con la cuenta gratuita de Apple: al instalar, "
+                      + "AltStore firma la app sin ese permiso. Queda por si alguna vez "
+                      + "pasás a una cuenta paga.") {
                 Fila("Permiso", balanza.estadoDeSalud)
-                Button {
+                Linea()
+                Accion(texto: "Dar permiso a Salud", simbolo: "heart.text.square") {
                     balanza.pedirPermisoDeSalud()
-                } label: {
-                    Label("Dar permiso a Salud", systemImage: "heart.text.square")
                 }
-            } header: {
-                Text("Salud de Apple")
-            } footer: {
-                Text("No funciona con la cuenta gratuita de Apple: al instalar, AltStore firma la app sin ese permiso. Queda por si alguna vez pasás a una cuenta paga.")
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Paleta.fondo)
         .navigationTitle("Ajustes")
         .task { Firma.estadoDelAviso { estadoDelAviso = $0 } }
     }
@@ -102,38 +103,46 @@ struct PantallaArchivos: View {
     let almacen: Almacen
 
     var body: some View {
-        List {
-            Section {
-                ShareLink(item: almacen.urlResumen) {
-                    Label("Resumen de todo", systemImage: "doc.text")
-                }
-            } footer: {
-                Text("Una página con el estado de todo. Es el que conviene mandar si querés preguntar cómo venís.")
+        Pantalla(titulo: "Archivos",
+                 bajada: "Todo en texto plano, legible sin la app") {
+            Bloque(pie: "Una página con el estado de todo. Es el que conviene mandar "
+                      + "si querés preguntar cómo venís.") {
+                Compartir("Resumen de todo", almacen.urlResumen)
             }
 
-            Section("Peso") {
+            Bloque(titulo: "Peso") {
                 Compartir("Pesadas", almacen.urlPesadas)
+                Linea()
                 Compartir("Tramas de la balanza", almacen.urlTramas)
             }
-            Section("Remo") {
-                Compartir("Sesiones", almacen.urlSesiones)
+
+            Bloque(titulo: "Entrenamiento") {
+                Compartir("Sesiones de remo", almacen.urlSesiones)
+                Linea()
                 Compartir("Tramas de la máquina", almacen.urlTramasDeRemo)
+                Linea()
+                Compartir("Series de pesas", almacen.urlPesas)
             }
-            Section("Lo que cargás a mano") {
+
+            Bloque(titulo: "Lo que cargás a mano") {
                 Compartir("Proteína", almacen.urlConsumo)
+                Linea()
                 Compartir("Notas", almacen.urlNotas)
+                Linea()
                 Compartir("Gastos", almacen.urlGastos)
             }
-            Section {
-                Compartir("Frases de la apertura", almacen.documentos
-                    .appendingPathComponent("frases.txt"))
+
+            Bloque(titulo: "Listas que podés editar",
+                   pie: "Estos tres se pueden abrir y cambiar a mano desde "
+                      + "Archivos → En mi iPad → Yelin App.") {
+                Compartir("Frases de la apertura",
+                          almacen.documentos.appendingPathComponent("frases.txt"))
+                Linea()
                 Compartir("Categorías de gastos", almacen.urlCategorias)
-            } footer: {
-                Text("Estos dos se pueden editar a mano desde Archivos → En mi iPad → Yelin App.")
+                Linea()
+                Compartir("Ejercicios de pesas", almacen.urlEjercicios)
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Paleta.fondo)
         .navigationTitle("Archivos")
     }
 }
@@ -149,8 +158,21 @@ struct Compartir: View {
 
     var body: some View {
         ShareLink(item: archivo) {
-            Label(titulo, systemImage: "square.and.arrow.up")
+            HStack(spacing: 11) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Paleta.acento)
+                    .frame(width: 18)
+                Text(titulo)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(Paleta.texto)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -161,35 +183,37 @@ struct PantallaTramas: View {
     @State private var copiado = ""
 
     var body: some View {
-        List {
-            Section("Balanza") {
+        Pantalla(titulo: "Tramas crudas",
+                 bajada: "Los bytes tal como los manda cada aparato") {
+            Bloque(titulo: "Balanza") {
                 Fila("Recibidas en esta sesión", "\(balanza.tramasDeLaSesion)")
+                Linea()
                 Fila("Descartadas", "\(balanza.tramasDescartadas)")
                 if !balanza.ultimaTrama.isEmpty {
+                    Linea()
                     Cruda(balanza.ultimaTrama)
                 }
             }
 
-            Section("Remo") {
+            Bloque(titulo: "Remo") {
                 Fila("Recibidas en esta sesión", "\(remo.cantidadDeTramas)")
                 if !remo.nombreDelAparato.isEmpty {
+                    Linea()
                     Fila("Aparato", remo.nombreDelAparato)
                 }
                 if !remo.ultimaTrama.isEmpty {
+                    Linea()
                     Cruda(remo.ultimaTrama)
                 }
-                Button {
+                Linea()
+                Accion(texto: copiado == "remo" ? "Copiado" : "Copiar las tramas del remo",
+                       simbolo: "doc.on.doc",
+                       apagada: remo.cantidadDeTramas == 0) {
                     UIPasteboard.general.string = remo.textoParaCopiar()
                     copiado = "remo"
-                } label: {
-                    Label(copiado == "remo" ? "Copiado" : "Copiar las tramas del remo",
-                          systemImage: "doc.on.doc")
                 }
-                .disabled(remo.cantidadDeTramas == 0)
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Paleta.fondo)
         .navigationTitle("Tramas crudas")
     }
 }
@@ -200,12 +224,16 @@ struct Cruda: View {
     init(_ texto: String) { self.texto = texto }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Última")
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-            Text(texto)
-                .font(.system(.footnote, design: .monospaced))
+        Celda {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Última")
+                    .font(.system(size: 12))
+                    .foregroundColor(Paleta.suave)
+                Text(texto)
+                    .font(.system(.footnote, design: .monospaced))
+                    .foregroundColor(Paleta.texto)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }

@@ -11,25 +11,38 @@ struct PantallaNotas: View {
     private var lista: [Nota] { diario.notasQueCoinciden(con: busqueda) }
 
     var body: some View {
-        List {
-            if lista.isEmpty {
-                Text(busqueda.isEmpty ? "Todavía no hay notas."
-                                      : "Ninguna nota dice eso.")
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(lista) { nota in
-                    Button { enEdicion = nota } label: {
-                        FilaDeNota(nota: nota)
+        Pantalla {
+            Bloque(pie: lista.isEmpty ? nil : "Tocá una nota para editarla. "
+                      + "Mantené apretado para borrarla.") {
+                if lista.isEmpty {
+                    Vacio(busqueda.isEmpty ? "Todavía no hay notas."
+                                           : "Ninguna nota dice eso.")
+                } else {
+                    ForEach(enumerar(lista)) { fila in
+                        if fila.puesto > 0 { Linea() }
+                        Button { enEdicion = fila.valor } label: {
+                            FilaDeNota(nota: fila.valor)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                diario.borrar(fila.valor)
+                            } label: {
+                                Label("Borrar la nota", systemImage: "trash")
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
-                .onDelete { indices in
-                    indices.map { lista[$0] }.forEach(diario.borrar)
+            }
+
+            if !diario.notas.isEmpty {
+                Bloque(titulo: "En total") {
+                    Fila("Notas", "\(diario.notas.count)")
+                    Linea()
+                    Fila("Marcadas", "\(diario.notas.filter(\.importante).count)")
                 }
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Paleta.fondo)
         .searchable(text: $busqueda, prompt: "Buscar en las notas")
         .navigationTitle("Notas")
         .toolbar {
@@ -59,27 +72,32 @@ struct FilaDeNota: View {
         HStack(alignment: .top, spacing: 10) {
             if nota.importante {
                 Image(systemName: "star.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: 10))
                     .foregroundColor(Paleta.acento)
-                    .padding(.top, 4)
+                    .padding(.top, 5)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(nota.titulo)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(Paleta.texto)
                     .lineLimit(1)
                 if !nota.resto.isEmpty {
                     Text(nota.resto)
                         .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Paleta.suave)
                         .lineLimit(2)
+                        .multilineTextAlignment(.leading)
                 }
                 Text(nota.instante.formatted(date: .abbreviated, time: .shortened))
                     .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Paleta.suave.opacity(0.85))
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .contentShape(Rectangle())
     }
 }
 
@@ -92,18 +110,29 @@ struct EditorDeNota: View {
     @Environment(\.dismiss) private var cerrar
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                TextEditor(text: $texto)
-                    .scrollContentBackground(.hidden)
-                    .background(Paleta.fondo)
-                    .padding(.horizontal, 12)
-                Divider()
-                Toggle("Importante", isOn: $importante)
-                    .tint(Paleta.acento)
-                    .padding()
+        NavigationStack {
+            ZStack {
+                Paleta.fondo.ignoresSafeArea()
+                VStack(spacing: 0) {
+                    TextEditor(text: $texto)
+                        .font(.system(size: 16))
+                        .scrollContentBackground(.hidden)
+                        .background(Paleta.fondo)
+                        .padding(.horizontal, 14)
+                        .padding(.top, 8)
+
+                    Rectangle()
+                        .fill(Paleta.borde)
+                        .frame(height: 1)
+
+                    Toggle("Importante", isOn: $importante)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(Paleta.texto)
+                        .tint(Paleta.acento)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 14)
+                }
             }
-            .background(Paleta.fondo)
             .navigationTitle(titulo)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -119,6 +148,5 @@ struct EditorDeNota: View {
                 }
             }
         }
-        .navigationViewStyle(.stack)
     }
 }

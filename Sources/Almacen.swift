@@ -45,7 +45,7 @@ final class Almacen {
     /// Todos los archivos que se suben a Drive.
     var archivosParaSubir: [URL] {
         [urlResumen, urlPesadas, urlTramas, urlSesiones, urlTramasDeRemo,
-         urlConsumo, urlNotas, urlGastos]
+         urlConsumo, urlNotas, urlGastos, urlPesas]
     }
 
     let fechas: ISO8601DateFormatter = {
@@ -71,6 +71,7 @@ final class Almacen {
                      encabezado: "inicio,fin,segundos_remando,segundos_totales,metros,paladas,watts_promedio,ritmo_500m")
         crearSiFalta(urlTramasDeRemo, encabezado: "instante,trama")
         prepararRegistros()
+        prepararPesas()
     }
 
     var documentos: URL {

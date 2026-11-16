@@ -5,72 +5,76 @@ struct PantallaProteina: View {
     @ObservedObject var diario: Diario
 
     var body: some View {
-        List {
-            Section {
-                Hero(numero: formato(diario.scoopsDeHoy),
-                     unidad: diario.scoopsDeHoy == 1 ? "scoop hoy" : "scoops hoy",
-                     estado: diario.scoopsDeHoy == 0 ? "Todavía ninguno" : "Anotado",
-                     señal: diario.scoopsDeHoy == 0 ? .esperando : .conectado)
+        Pantalla {
+            Hero(numero: Kilos.texto(diario.scoopsDeHoy),
+                 unidad: diario.scoopsDeHoy == 1 ? "scoop hoy" : "scoops hoy",
+                 estado: diario.scoopsDeHoy == 0 ? "Todavía ninguno" : "Anotado",
+                 señal: diario.scoopsDeHoy == 0 ? .esperando : .conectado,
+                 alPie: promedio)
+
+            HStack(spacing: 12) {
+                Boton(texto: "+ 1 scoop") { diario.anotarScoops(1) }
+                Boton(texto: "+ ½") { diario.anotarScoops(0.5) }
             }
 
-            Section {
-                HStack(spacing: 12) {
-                    Boton(texto: "+ 1 scoop") { diario.anotarScoops(1) }
-                    Boton(texto: "+ ½") { diario.anotarScoops(0.5) }
-                }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            }
-
-            Section("Hoy") {
+            Bloque(titulo: "Hoy",
+                   pie: diario.consumoDeHoy.isEmpty ? nil
+                      : "Mantené apretado para borrar.") {
                 if diario.consumoDeHoy.isEmpty {
-                    Text("Nada anotado todavía.")
-                        .foregroundColor(.secondary)
+                    Vacio("Nada anotado todavía.")
                 } else {
-                    ForEach(diario.consumoDeHoy) { c in
-                        HStack {
-                            Text(formato(c.cantidad) + (c.cantidad == 1 ? " scoop" : " scoops"))
-                                .monospacedDigit()
-                            Spacer()
-                            Text(c.instante.formatted(date: .omitted, time: .shortened))
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
+                    ForEach(enumerar(diario.consumoDeHoy)) { fila in
+                        if fila.puesto > 0 { Linea() }
+                        Celda {
+                            HStack {
+                                Text(Kilos.texto(fila.valor.cantidad)
+                                     + (fila.valor.cantidad == 1 ? " scoop" : " scoops"))
+                                    .font(.system(size: 15, weight: .medium))
+                                    .monospacedDigit()
+                                    .foregroundColor(Paleta.texto)
+                                Spacer()
+                                Text(fila.valor.instante.formatted(date: .omitted,
+                                                                   time: .shortened))
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Paleta.suave)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                diario.borrar(fila.valor)
+                            } label: {
+                                Label("Borrar", systemImage: "trash")
+                            }
                         }
                     }
-                    .onDelete { indices in
-                        indices.map { diario.consumoDeHoy[$0] }.forEach(diario.borrar)
-                    }
                 }
             }
 
-            Section("Días anteriores") {
+            Bloque(titulo: "Días anteriores") {
                 let dias = diario.consumoPorDia().filter {
                     !Calendar.current.isDateInToday($0.dia)
                 }
                 if dias.isEmpty {
-                    Text("Sin historial todavía.")
-                        .foregroundColor(.secondary)
+                    Vacio("Sin historial todavía.")
                 } else {
-                    ForEach(dias, id: \.dia) { fila in
-                        HStack {
-                            Text(fila.dia.formatted(date: .abbreviated, time: .omitted))
-                            Spacer()
-                            Text(formato(fila.total))
-                                .fontWeight(.medium)
-                                .monospacedDigit()
-                        }
+                    ForEach(enumerar(dias)) { fila in
+                        if fila.puesto > 0 { Linea() }
+                        Fila(Fechas.relativa(fila.valor.dia).capitalizedPrimera,
+                             Kilos.texto(fila.valor.total))
                     }
                 }
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Paleta.fondo)
         .navigationTitle("Proteína")
-        .toolbar { EditButton() }
     }
 
-    private func formato(_ v: Double) -> String {
-        v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
+    private var promedio: String? {
+        let dias = diario.consumoPorDia(ultimos: 7)
+        guard dias.count >= 2 else { return nil }
+        let total = dias.reduce(0.0) { $0 + $1.total }
+        return String(format: "%.1f por día en los últimos %d días con registro",
+                      total / Double(dias.count), dias.count)
     }
 }
 
@@ -82,7 +86,7 @@ struct Boton: View {
     var body: some View {
         Button(action: accion) {
             Text(texto)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 15)

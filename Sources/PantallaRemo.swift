@@ -1,90 +1,124 @@
 import SwiftUI
-import UIKit
 
+/// El remo: lo que manda la máquina y lo que calcula la app con eso.
+///
+/// La máquina no informa distancia ni tiempo, así que la distancia la integra
+/// la app a partir del ritmo instantáneo. Está separado en dos bloques para
+/// que quede claro qué dato es medido y qué dato es calculado.
 struct PantallaRemo: View {
     @ObservedObject var remo: LectorDeRemo
-    @State private var copiado = false
 
     var body: some View {
-        NavigationView {
-            List {
-                Section {
-                    distancia
-                }
+        Pantalla {
+            Hero(numero: "\(Int(remo.distanciaCalculada))",
+                 unidad: "metros",
+                 estado: remo.estado,
+                 señal: remo.sesionAbierta ? .conectado : .esperando,
+                 alPie: alPie)
 
-                if !remo.avisoDeRecuperacion.isEmpty {
-                    Section {
-                        Label(remo.avisoDeRecuperacion, systemImage: "arrow.uturn.backward.circle")
-                            .foregroundColor(.secondary)
-                    }
-                }
-
-                Section("Lo que manda la máquina") {
-                    Fila("Ritmo por 500 m", enMinutos(remo.datos.ritmoPor500))
-                    Fila("Paladas por minuto", conUnDecimal(remo.datos.paladasPorMinuto))
-                    Fila("Watts", entero(remo.datos.watts))
-                    Fila("Paladas contadas", entero(remo.datos.paladasTotales))
-                }
-
-                Section("Lo que calcula la app") {
-                    Fila("Tiempo remando", enMinutos(Int(remo.segundosRemando)))
-                    Fila("Tiempo total", enMinutos(Int(remo.segundosTotales)))
-                    Fila("Watts promedio", String(format: "%.0f", remo.wattsPromedioCalculado))
-                    Fila("Ritmo promedio", ritmoPromedio)
-                }
-
-                if remo.sesionAbierta {
-                    Section("Sesión en curso") {
-                        Button {
-                            remo.terminarSesion()
-                        } label: {
-                            Label("Terminar y guardar", systemImage: "checkmark.circle")
-                        }
-                        Button(role: .destructive) {
-                            remo.descartarSesion()
-                        } label: {
-                            Label("Descartar", systemImage: "trash")
+            if !remo.avisoDeRecuperacion.isEmpty {
+                Bloque {
+                    Celda {
+                        HStack(spacing: 10) {
+                            Image(systemName: "arrow.uturn.backward.circle")
+                                .font(.system(size: 14))
+                                .foregroundColor(Paleta.acento)
+                            Text(remo.avisoDeRecuperacion)
+                                .font(.system(size: 13))
+                                .foregroundColor(Paleta.suave)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
-
-                Section("Sesiones guardadas") {
-                    if remo.sesiones.isEmpty {
-                        Text("Todavía ninguna. Remá un rato y se guarda sola.")
-                            .foregroundColor(.secondary)
-                    } else {
-                        ForEach(remo.sesiones) { sesion in
-                            FilaDeSesion(sesion: sesion)
-                        }
-                        .onDelete { indices in
-                            indices.map { remo.sesiones[$0] }.forEach(remo.borrar)
-                        }
-                    }
-                }
-
             }
-            .scrollContentBackground(.hidden)
-            .background(Paleta.fondo)
-            .navigationTitle("Remo")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) { EditButton() }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { remo.buscarDeNuevo() } label: {
-                        Image(systemName: "arrow.clockwise")
+
+            if remo.sesionAbierta {
+                Bloque(titulo: "Sesión en curso") {
+                    Accion(texto: "Terminar y guardar", simbolo: "checkmark.circle") {
+                        remo.terminarSesion()
                     }
+                    Linea()
+                    Accion(texto: "Descartar", simbolo: "trash", destructiva: true) {
+                        remo.descartarSesion()
+                    }
+                }
+            }
+
+            Bloque(titulo: "Lo que manda la máquina") {
+                Fila("Ritmo por 500 m", enMinutos(remo.datos.ritmoPor500))
+                Linea()
+                Fila("Paladas por minuto", conUnDecimal(remo.datos.paladasPorMinuto))
+                Linea()
+                Fila("Watts", entero(remo.datos.watts))
+                Linea()
+                Fila("Paladas contadas", entero(remo.datos.paladasTotales))
+            }
+
+            Bloque(titulo: "Lo que calcula la app",
+                   pie: "La máquina no manda distancia ni tiempo. Falta calibrar estos "
+                      + "números contra el display del aparato.") {
+                Fila("Tiempo remando", enMinutos(Int(remo.segundosRemando)))
+                Linea()
+                Fila("Tiempo total", enMinutos(Int(remo.segundosTotales)))
+                Linea()
+                Fila("Watts promedio", String(format: "%.0f", remo.wattsPromedioCalculado))
+                Linea()
+                Fila("Ritmo promedio", ritmoPromedio)
+            }
+
+            Bloque(titulo: "Sesiones guardadas",
+                   pie: remo.sesiones.isEmpty ? nil
+                      : "Mantené apretada una sesión para borrarla.") {
+                if remo.sesiones.isEmpty {
+                    Vacio("Todavía ninguna. Remá un rato y se guarda sola.")
+                } else {
+                    ForEach(enumerar(remo.sesiones)) { fila in
+                        if fila.puesto > 0 { Linea() }
+                        FilaDeSesion(sesion: fila.valor)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    remo.borrar(fila.valor)
+                                } label: {
+                                    Label("Borrar la sesión", systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+            }
+
+            if !remo.sesiones.isEmpty {
+                Bloque(titulo: "Acumulado") {
+                    Fila("Sesiones", "\(remo.sesiones.count)")
+                    Linea()
+                    Fila("Metros en total",
+                         Kilos.grande(remo.sesiones.reduce(0) { $0 + $1.metros }) + " m")
+                    Linea()
+                    Fila("Tiempo remando",
+                         enHoras(remo.sesiones.reduce(0) { $0 + $1.segundosRemando }))
+                    Linea()
+                    Fila("La más larga", masLarga)
                 }
             }
         }
-        .navigationViewStyle(.stack)
+        .navigationTitle("Remo")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { remo.buscarDeNuevo() } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+            }
+        }
     }
 
-    private var distancia: some View {
+    private var alPie: String? {
         let metros = Int(remo.distanciaCalculada)
-        return Hero(numero: "\(metros)",
-                    unidad: "metros",
-                    estado: remo.estado,
-                    señal: remo.sesionAbierta ? .conectado : .esperando,
-                    alPie: "faltan \(max(0, 10_000 - metros)) para los 10 000")
+        guard metros > 0 else { return nil }
+        return "faltan \(max(0, 10_000 - metros)) para los 10 000"
+    }
+
+    private var masLarga: String {
+        guard let s = remo.sesiones.max(by: { $0.metros < $1.metros }) else { return "—" }
+        return String(format: "%.0f m · %@", s.metros, Fechas.corta(s.inicio))
     }
 
     private var ritmoPromedio: String {
@@ -96,6 +130,12 @@ struct PantallaRemo: View {
     private func enMinutos(_ segundos: Int?) -> String {
         guard let segundos, segundos > 0 else { return "—" }
         return String(format: "%d:%02d", segundos / 60, segundos % 60)
+    }
+
+    private func enHoras(_ segundos: Double) -> String {
+        let horas = Int(segundos) / 3600
+        let minutos = (Int(segundos) % 3600) / 60
+        return horas > 0 ? "\(horas) h \(minutos) min" : "\(minutos) min"
     }
 
     private func entero(_ valor: Int?) -> String {
@@ -116,17 +156,23 @@ struct FilaDeSesion: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(String(format: "%.0f m", sesion.metros))
-                    .fontWeight(.semibold)
+                    .font(.system(size: 16, weight: .semibold))
                     .monospacedDigit()
+                    .foregroundColor(Paleta.texto)
                 Spacer()
                 Text(sesion.inicio.formatted(date: .abbreviated, time: .shortened))
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundColor(Paleta.suave)
             }
             Text(detalle)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(.system(size: 12))
+                .foregroundColor(Paleta.suave)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .contentShape(Rectangle())
     }
 
     private var detalle: String {

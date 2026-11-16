@@ -61,7 +61,5 @@ struct Hero: View {
             .fill(Paleta.superficie))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
             .stroke(Paleta.borde, lineWidth: 1))
-        .listRowBackground(Color.clear)
-        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
     }
 }

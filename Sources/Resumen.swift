@@ -19,6 +19,8 @@ enum Resumen {
         l.append("")
         l.append(contentsOf: bloqueDeRemo(sesiones))
         l.append("")
+        l.append(contentsOf: bloqueDePesas(almacen.cargarSeries()))
+        l.append("")
         l.append(contentsOf: bloqueDeProteina(almacen.cargarConsumo()))
         l.append("")
         l.append(contentsOf: bloqueDeGastos(almacen))
@@ -31,6 +33,7 @@ enum Resumen {
         l.append("- `tramas.csv` — todo lo crudo que mandó la balanza")
         l.append("- `sesiones-remo.csv` — una línea por sesión de remo")
         l.append("- `tramas-remo.csv` — todo lo crudo que mandó la máquina")
+        l.append("- `pesas.csv` — una línea por serie: ejercicio, repeticiones y kilos")
         l.append("- `consumo.csv` — scoops de proteína con su hora")
         l.append("- `notas.csv` — las notas, con fecha y si están marcadas")
         l.append("- `gastos.csv` — monto, categoría y detalle de cada gasto")
@@ -99,6 +102,48 @@ enum Resumen {
         l.append("Nota: la distancia y el ritmo los calcula la app a partir del ritmo")
         l.append("instantáneo que informa la máquina, que no manda distancia. Falta")
         l.append("calibrarlos contra el display del aparato.")
+        return l
+    }
+
+    private static func bloqueDePesas(_ series: [Serie]) -> [String] {
+        var l = ["## Pesas", ""]
+        guard !series.isEmpty else {
+            l.append("Todavía no hay series anotadas.")
+            return l
+        }
+        let calendario = Calendar.current
+        var porDia: [Date: [Serie]] = [:]
+        for s in series { porDia[calendario.startOfDay(for: s.instante), default: []].append(s) }
+        let dias = porDia.keys.sorted(by: >)
+        let volumenTotal = series.reduce(0.0) { $0 + $1.volumen }
+
+        l.append("- Días entrenados: \(dias.count)")
+        l.append("- Series en total: \(series.count)")
+        l.append(String(format: "- Volumen acumulado: %.0f kg (repeticiones por kilos)", volumenTotal))
+
+        if let ultimo = dias.first, let delDia = porDia[ultimo] {
+            let volumen = delDia.reduce(0.0) { $0 + $1.volumen }
+            l.append(String(format: "- Última sesión: %@, %.0f kg de volumen en %d series",
+                            fechaCorta(ultimo), volumen, delDia.count))
+            var nombres: [String] = []
+            for s in delDia where !nombres.contains(s.ejercicio) { nombres.append(s.ejercicio) }
+            for nombre in nombres {
+                let suyas = delDia.filter { $0.ejercicio == nombre }
+                l.append("  - \(nombre): " + suyas.map(\.resumen).joined(separator: ", "))
+            }
+        }
+
+        var ejercicios: [String] = []
+        for s in series where !ejercicios.contains(s.ejercicio) { ejercicios.append(s.ejercicio) }
+        if !ejercicios.isEmpty {
+            l.append("- Mejor kilaje por ejercicio:")
+            for nombre in ejercicios.sorted() {
+                let suyas = series.filter { $0.ejercicio == nombre }
+                if let mejor = suyas.max(by: { $0.kilos < $1.kilos }) {
+                    l.append("  - \(nombre): \(mejor.resumen) el \(fechaCorta(mejor.instante))")
+                }
+            }
+        }
         return l
     }
 

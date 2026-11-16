@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// La pantalla de inicio: una grilla de fichas, una por cada parte de la app.
+/// La pantalla de inicio: el tablero con una ficha por cada parte de la app.
 ///
 /// El peso **no se muestra acá** a propósito: así quedó decidido en el diseño.
 /// La ficha dice cuándo fue la última pesada, no cuánto dio.
@@ -9,39 +9,34 @@ struct PantallaHoy: View {
     @ObservedObject var remo: LectorDeRemo
     @ObservedObject var sincronizador: Sincronizador
     @ObservedObject var diario: Diario
-    @Binding var pestana: Int
+    @ObservedObject var pesas: Pesas
+    @Binding var ir: Seccion
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
 
-    /// Dos columnas en teléfono y tres en tablet: las seis fichas quedan
-    /// parejas en los dos casos, 2+2+2 o 3+3.
     private var columnas: [GridItem] {
-        let cuantas = anchoDePantalla == .regular ? 3 : 2
-        return Array(repeating: GridItem(.flexible(), spacing: 14), count: cuantas)
+        let cuantas = anchoDePantalla == .regular ? 4 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 13), count: cuantas)
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Paleta.fondo.ignoresSafeArea()
-                contenido
+        ZStack {
+            Paleta.fondo.ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    encabezado
+                    grilla
+                    estaSemana
+                    pie
+                }
+                .padding(.horizontal, Medida.margen)
+                .padding(.top, 14)
+                .padding(.bottom, 32)
+                .frame(maxWidth: Medida.ancho)
+                .frame(maxWidth: .infinity)
             }
-            .navigationBarHidden(true)
         }
-    }
-
-    private var contenido: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
-                encabezado
-                grilla
-                pie
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 18)
-            .frame(maxWidth: 760)
-            .frame(maxWidth: .infinity)
-        }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     // MARK: Encabezado
@@ -54,7 +49,7 @@ struct PantallaHoy: View {
                 Text("Hoy")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(Paleta.texto)
-                Text(fechaDeHoy)
+                Text(Fechas.larga(Date()))
                     .font(.system(size: 13))
                     .foregroundColor(Paleta.suave)
             }
@@ -62,74 +57,98 @@ struct PantallaHoy: View {
         }
     }
 
-    private var fechaDeHoy: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "es_AR")
-        f.dateFormat = "EEEE d 'de' MMMM"
-        return f.string(from: Date()).capitalizedPrimera
-    }
-
-    // MARK: Grilla
+    // MARK: Las fichas
 
     private var grilla: some View {
-        LazyVGrid(columns: columnas, spacing: 14) {
-            Button { pestana = 1 } label: {
-                Ficha(titulo: "Peso", simbolo: "scalemass",
-                      detalle: detalleDePeso, activa: true)
-            }
-            .buttonStyle(.plain)
-
-            Button { pestana = 2 } label: {
-                Ficha(titulo: "Remo", simbolo: "figure.rower",
-                      detalle: detalleDeRemo, activa: true)
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                PantallaProteina(diario: diario)
-            } label: {
-                Ficha(titulo: "Proteína", simbolo: "cup.and.saucer",
-                      detalle: detalleDeProteina, activa: true)
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                PantallaNotas(diario: diario)
-            } label: {
-                Ficha(titulo: "Notas", simbolo: "note.text",
-                      detalle: detalleDeNotas, activa: true)
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                PantallaGastos(diario: diario)
-            } label: {
-                Ficha(titulo: "Gastos", simbolo: "dollarsign.circle",
-                      detalle: detalleDeGastos, activa: true)
-            }
-            .buttonStyle(.plain)
-
-            Ficha(titulo: "Pesas", simbolo: "dumbbell",
-                  detalle: "Pronto", activa: false)
+        LazyVGrid(columns: columnas, spacing: 13) {
+            tarjeta(.peso, detalle: detalleDePeso)
+            tarjeta(.remo, detalle: detalleDeRemo)
+            tarjeta(.pesas, detalle: detalleDePesas)
+            tarjeta(.semana, detalle: detalleDeSemana)
+            tarjeta(.constancia, detalle: detalleDeConstancia)
+            tarjeta(.proteina, detalle: detalleDeProteina)
+            tarjeta(.notas, detalle: detalleDeNotas)
+            tarjeta(.gastos, detalle: detalleDeGastos)
         }
     }
+
+    /// En tablet todas las secciones están en la columna de la izquierda, así
+    /// que la ficha la selecciona. En teléfono solo cinco están en la barra de
+    /// abajo; las demás se abren encima del inicio.
+    @ViewBuilder
+    private func tarjeta(_ s: Seccion, detalle: String) -> some View {
+        if anchoDePantalla == .regular || Seccion.enLaBarra.contains(s) {
+            Button { ir = s } label: {
+                Ficha(titulo: s.titulo, simbolo: s.simbolo, detalle: detalle, activa: true)
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                destino(s)
+            } label: {
+                Ficha(titulo: s.titulo, simbolo: s.simbolo, detalle: detalle, activa: true)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func destino(_ s: Seccion) -> some View {
+        switch s {
+        case .constancia: PantallaConstancia(balanza: balanza, remo: remo, pesas: pesas)
+        case .proteina:   PantallaProteina(diario: diario)
+        case .notas:      PantallaNotas(diario: diario)
+        case .gastos:     PantallaGastos(diario: diario)
+        case .semana:     PantallaSemana(balanza: balanza, remo: remo,
+                                         diario: diario, pesas: pesas)
+        case .pesas:      PantallaPesas(pesas: pesas)
+        default:          PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
+                                          remo: remo, pesas: pesas)
+        }
+    }
+
+    // MARK: Lo que dice cada ficha
 
     /// A propósito no dice cuántos kilos: solo cuándo fue.
     private var detalleDePeso: String {
         guard let ultima = balanza.pesadas.first else { return "Sin registros todavía" }
-        return "Última: " + cuandoFue(ultima.instante)
+        return "Última: " + Fechas.conHora(ultima.instante)
     }
 
     private var detalleDeRemo: String {
         guard let ultima = remo.sesiones.first else { return "Sin sesiones todavía" }
-        return String(format: "%.0f m · %@", ultima.metros, cuandoFue(ultima.inicio))
+        return String(format: "%.0f m · %@", ultima.metros, Fechas.conHora(ultima.inicio))
+    }
+
+    private var detalleDePesas: String {
+        if !pesas.seriesDeHoy.isEmpty {
+            return "\(pesas.seriesDeHoy.count) series hoy"
+        }
+        guard let ultimo = pesas.dias().first else { return "Sin series todavía" }
+        return "Última vez: " + Fechas.relativa(ultimo.dia)
+    }
+
+    private var detalleDeSemana: String {
+        let s = semana
+        guard s.metros.ahora > 0 || s.volumenDePesas.ahora > 0 else {
+            return "Sin entrenamientos"
+        }
+        return "\(s.diasActivos) de 7 días activos"
+    }
+
+    private var detalleDeConstancia: String {
+        let c = Constancia.armar(pesadas: balanza.pesadas, sesiones: remo.sesiones,
+                                 series: pesas.series)
+        if c.rachaActual > 0 {
+            return "\(c.rachaActual) " + (c.rachaActual == 1 ? "día seguido" : "días seguidos")
+        }
+        return "\(c.entrenadosEnTreinta) de los últimos 30"
     }
 
     private var detalleDeProteina: String {
         let hoy = diario.scoopsDeHoy
         guard hoy > 0 else { return "Nada hoy" }
-        let texto = hoy == hoy.rounded() ? String(format: "%.0f", hoy) : String(format: "%.1f", hoy)
-        return texto + (hoy == 1 ? " scoop hoy" : " scoops hoy")
+        return Kilos.texto(hoy) + (hoy == 1 ? " scoop hoy" : " scoops hoy")
     }
 
     private var detalleDeNotas: String {
@@ -144,27 +163,38 @@ struct PantallaHoy: View {
         return Plata.corto(total) + " este mes"
     }
 
-    private func cuandoFue(_ fecha: Date) -> String {
-        let calendario = Calendar.current
-        if calendario.isDateInToday(fecha) {
-            return "hoy " + fecha.formatted(date: .omitted, time: .shortened)
+    // MARK: Un vistazo a la semana
+
+    private var semana: Semana {
+        Semana.armar(pesadas: balanza.pesadas, sesiones: remo.sesiones,
+                     consumo: diario.consumo, gastos: diario.gastos,
+                     series: pesas.series)
+    }
+
+    private var estaSemana: some View {
+        let s = semana
+        return Bloque(titulo: "Esta semana") {
+            Celda {
+                HStack(spacing: 0) {
+                    Resumido(valor: s.metros.ahora > 0 ? Kilos.grande(s.metros.ahora) : "—",
+                             rotulo: "metros")
+                    Separador()
+                    Resumido(valor: s.volumenDePesas.ahora > 0
+                                  ? Kilos.grande(s.volumenDePesas.ahora) : "—",
+                             rotulo: "kg de pesas")
+                    Separador()
+                    Resumido(valor: "\(s.diasActivos)/7", rotulo: "días activos")
+                }
+            }
         }
-        if calendario.isDateInYesterday(fecha) { return "ayer" }
-        let dias = calendario.dateComponents([.day],
-                                             from: calendario.startOfDay(for: fecha),
-                                             to: calendario.startOfDay(for: Date())).day ?? 0
-        if dias < 7 { return "hace \(dias) días" }
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "es_AR")
-        f.dateFormat = "d/M"
-        return f.string(from: fecha)
     }
 
     // MARK: Pie
 
     private var pie: some View {
         NavigationLink {
-            PantallaAjustes(sincronizador: sincronizador, balanza: balanza, remo: remo)
+            PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
+                            remo: remo, pesas: pesas)
         } label: {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -183,7 +213,36 @@ struct PantallaHoy: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.top, 4)
+        .padding(.top, 2)
+    }
+}
+
+/// Un número chico con su palabra, de los tres que van en "Esta semana".
+private struct Resumido: View {
+    let valor: String
+    let rotulo: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(valor)
+                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundColor(Paleta.texto)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(rotulo)
+                .font(.system(size: 11))
+                .foregroundColor(Paleta.suave)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct Separador: View {
+    var body: some View {
+        Rectangle()
+            .fill(Paleta.borde)
+            .frame(width: 1, height: 30)
     }
 }
 
@@ -197,25 +256,27 @@ struct Ficha: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: simbolo)
-                .font(.system(size: 21, weight: .medium))
+                .font(.system(size: 20, weight: .medium))
                 .foregroundColor(activa ? Paleta.acento : Paleta.suave)
-            Spacer(minLength: 12)
+            Spacer(minLength: 10)
             Text(titulo)
-                .font(.system(size: 17, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(activa ? Paleta.texto : Paleta.suave)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Text(detalle)
-                .font(.system(size: 12))
+                .font(.system(size: 11.5))
                 .foregroundColor(Paleta.suave)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
                 .padding(.top, 3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 124)
-        .padding(15)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .frame(height: 122)
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Medida.radio, style: .continuous)
             .fill(Paleta.superficie))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+        .overlay(RoundedRectangle(cornerRadius: Medida.radio, style: .continuous)
             .stroke(Paleta.borde, lineWidth: 1))
         .opacity(activa ? 1 : 0.5)
     }
