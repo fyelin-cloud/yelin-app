@@ -141,6 +141,15 @@ final class Pesas: ObservableObject {
         subir()
     }
 
+    /// Corrige una serie ya anotada. El ejercicio y la hora quedan como estaban.
+    func reemplazar(_ s: Serie, repeticiones: Int, kilos: Double) {
+        guard let donde = series.firstIndex(where: { $0.id == s.id }), repeticiones > 0 else { return }
+        series[donde].repeticiones = repeticiones
+        series[donde].kilos = max(0, kilos)
+        almacen.reescribirSeries(series)
+        subir()
+    }
+
     func borrar(_ s: Serie) {
         series.removeAll { $0.id == s.id }
         almacen.reescribirSeries(series)

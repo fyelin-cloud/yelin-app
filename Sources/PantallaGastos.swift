@@ -4,6 +4,7 @@ import SwiftUI
 struct PantallaGastos: View {
     @ObservedObject var diario: Diario
     @State private var anotando = false
+    @State private var corrigiendo: Gasto?
 
     var body: some View {
         Pantalla {
@@ -30,14 +31,18 @@ struct PantallaGastos: View {
 
             Bloque(titulo: "Este mes",
                    pie: diario.gastosDelMes().isEmpty ? nil
-                      : "Mantené apretado un gasto para borrarlo.") {
+                      : "Tocá un gasto para corregirlo. Mantené apretado para "
+                      + "borrarlo.") {
                 let delMes = diario.gastosDelMes()
                 if delMes.isEmpty {
                     Vacio("Nada anotado todavía.")
                 } else {
                     ForEach(enumerar(delMes)) { fila in
                         if fila.puesto > 0 { Linea() }
-                        FilaDeGasto(gasto: fila.valor)
+                        Button { corrigiendo = fila.valor } label: {
+                            FilaDeGasto(gasto: fila.valor)
+                        }
+                        .buttonStyle(.plain)
                             .contextMenu {
                                 Button(role: .destructive) {
                                     diario.borrar(fila.valor)
@@ -51,8 +56,13 @@ struct PantallaGastos: View {
         }
         .navigationTitle("Gastos")
         .sheet(isPresented: $anotando) {
-            NuevoGasto(categorias: diario.categorias) { monto, categoria, detalle in
+            EditorDeGasto(categorias: diario.categorias) { monto, categoria, detalle in
                 diario.anotarGasto(monto: monto, categoria: categoria, detalle: detalle)
+            }
+        }
+        .sheet(item: $corrigiendo) { g in
+            EditorDeGasto(categorias: diario.categorias, gasto: g) { monto, categoria, detalle in
+                diario.reemplazar(g, monto: monto, categoria: categoria, detalle: detalle)
             }
         }
     }
@@ -152,13 +162,15 @@ struct FilaDeGasto: View {
     }
 }
 
-struct NuevoGasto: View {
+struct EditorDeGasto: View {
     let categorias: [String]
+    var gasto: Gasto? = nil
     let guardar: (Double, String, String) -> Void
 
     @State private var monto = ""
     @State private var categoria = ""
     @State private var detalle = ""
+    @State private var cargado = false
     @Environment(\.dismiss) private var cerrar
 
     private var montoValido: Double? {
@@ -167,7 +179,8 @@ struct NuevoGasto: View {
 
     var body: some View {
         NavigationStack {
-            Pantalla(titulo: "Gasto nuevo") {
+            Pantalla(titulo: gasto == nil ? "Gasto nuevo" : "Corregir el gasto",
+                     bajada: gasto.map { "Del " + Fechas.conAnio($0.instante) }) {
                 Bloque(titulo: "Cuánto") {
                     HStack(spacing: 8) {
                         Text("$")
@@ -227,7 +240,17 @@ struct NuevoGasto: View {
                     Button("Cancelar") { cerrar() }
                 }
             }
-            .onAppear { if categoria.isEmpty { categoria = categorias.first ?? "Otros" } }
+            .onAppear {
+                guard !cargado else { return }
+                cargado = true
+                if let gasto {
+                    monto = String(format: "%g", gasto.monto)
+                    categoria = gasto.categoria
+                    detalle = gasto.detalle
+                } else if categoria.isEmpty {
+                    categoria = categorias.first ?? "Otros"
+                }
+            }
         }
     }
 

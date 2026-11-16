@@ -76,8 +76,32 @@ final class LectorDeBalanza: NSObject, ObservableObject {
 
     func borrar(_ pesada: Pesada) {
         pesadas.removeAll { $0.id == pesada.id }
+        guardarLista()
+    }
+
+    /// Carga una pesada a mano, con la fecha y hora que haya sido.
+    ///
+    /// Sirve para meter las de antes de tener la app, o la de un día que la
+    /// balanza estaba sin pila.
+    func agregarAMano(kg: Double, instante: Date) {
+        guard kg > 0 else { return }
+        pesadas.append(Pesada(instante: instante, gramos: Int((kg * 1000).rounded())))
+        guardarLista()
+    }
+
+    /// Corrige una pesada ya guardada.
+    func reemplazar(_ pesada: Pesada, kg: Double, instante: Date) {
+        guard kg > 0 else { return }
+        pesadas.removeAll { $0.id == pesada.id }
+        pesadas.append(Pesada(instante: instante, gramos: Int((kg * 1000).rounded())))
+        guardarLista()
+    }
+
+    private func guardarLista() {
+        pesadas.sort { $0.instante > $1.instante }
         almacen.reescribirPesadas(pesadas)
         ultimaGuardada = pesadas.first
+        sincronizador.subirEnSegundoPlano()
     }
 
     // MARK: Bluetooth

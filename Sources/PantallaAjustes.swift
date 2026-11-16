@@ -73,6 +73,12 @@ struct PantallaAjustes: View {
             }
 
             Bloque {
+                Navega(texto: "Recordatorios", simbolo: "bell",
+                       detalle: Avisos.compartido.lista.isEmpty ? "Ninguno"
+                              : "\(Avisos.compartido.lista.count)") {
+                    PantallaRecordatorios()
+                }
+                Linea()
                 Navega(texto: "Archivos", simbolo: "folder") {
                     PantallaArchivos(almacen: almacen)
                 }
@@ -105,8 +111,12 @@ struct PantallaArchivos: View {
     var body: some View {
         Pantalla(titulo: "Archivos",
                  bajada: "Todo en texto plano, legible sin la app") {
-            Bloque(pie: "Una página con el estado de todo. Es el que conviene mandar "
-                      + "si querés preguntar cómo venís.") {
+            Bloque(titulo: "Para mirar",
+                   pie: "El panel se abre con doble clic en la computadora y muestra "
+                      + "todo con sus gráficos, sin internet. El resumen es el que "
+                      + "conviene mandar si querés preguntar cómo venís.") {
+                Compartir("Panel para la PC", almacen.urlPanel)
+                Linea()
                 Compartir("Resumen de todo", almacen.urlResumen)
             }
 

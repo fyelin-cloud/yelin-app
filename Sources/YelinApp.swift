@@ -16,8 +16,10 @@ struct AplicacionYelin: App {
         _sincronizador = StateObject(wrappedValue: compartido)
         _balanza = StateObject(wrappedValue: LectorDeBalanza(sincronizador: compartido))
         _remo = StateObject(wrappedValue: LectorDeRemo(sincronizador: compartido))
-        _diario = StateObject(wrappedValue: Diario(sincronizador: compartido))
+        let cuaderno = Diario(sincronizador: compartido)
+        _diario = StateObject(wrappedValue: cuaderno)
         _pesas = StateObject(wrappedValue: Pesas(sincronizador: compartido))
+        Avisos.compartido.arrancar(sincronizador: compartido, diario: cuaderno)
     }
 
     var body: some Scene {
@@ -245,6 +247,9 @@ struct PantallaBalanza: View {
     @ObservedObject var balanza: LectorDeBalanza
     @ObservedObject var sincronizador: Sincronizador
 
+    @State private var cargandoAMano = false
+    @State private var corrigiendo: Pesada?
+
     var body: some View {
         Pantalla {
             Hero(numero: balanza.pesoKg.map { String(format: "%.2f", $0) } ?? "—",
@@ -258,17 +263,25 @@ struct PantallaBalanza: View {
                 Navega(texto: "Historial y tendencia", simbolo: "chart.xyaxis.line") {
                     PantallaPeso(pesadas: balanza.pesadas)
                 }
+                Linea()
+                Accion(texto: "Cargar una pesada a mano", simbolo: "plus.circle") {
+                    cargandoAMano = true
+                }
             }
 
             Bloque(titulo: "Pesadas guardadas",
                    pie: balanza.pesadas.isEmpty ? nil
-                      : "Mantené apretada una pesada para borrarla.") {
+                      : "Tocá una pesada para corregirla. Mantené apretada para "
+                      + "borrarla.") {
                 if balanza.pesadas.isEmpty {
                     Vacio("Todavía ninguna. Subite a la balanza.")
                 } else {
                     ForEach(enumerar(Array(balanza.pesadas.prefix(60)))) { fila in
                         if fila.puesto > 0 { Linea() }
-                        FilaDePesada(pesada: fila.valor)
+                        Button { corrigiendo = fila.valor } label: {
+                            FilaDePesada(pesada: fila.valor)
+                        }
+                        .buttonStyle(.plain)
                             .contextMenu {
                                 Button(role: .destructive) {
                                     balanza.borrar(fila.valor)
@@ -289,6 +302,16 @@ struct PantallaBalanza: View {
             }
         }
         .navigationTitle("Peso")
+        .sheet(isPresented: $cargandoAMano) {
+            EditorDePesada { kg, cuando in
+                balanza.agregarAMano(kg: kg, instante: cuando)
+            }
+        }
+        .sheet(item: $corrigiendo) { pesada in
+            EditorDePesada(pesada: pesada) { kg, cuando in
+                balanza.reemplazar(pesada, kg: kg, instante: cuando)
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { balanza.buscarDeNuevo() } label: {

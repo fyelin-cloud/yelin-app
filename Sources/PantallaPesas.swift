@@ -10,6 +10,7 @@ struct PantallaPesas: View {
 
     @State private var anotando = false
     @State private var ejercicioElegido: String?
+    @State private var corrigiendo: Serie?
 
     var body: some View {
         Pantalla {
@@ -50,6 +51,13 @@ struct PantallaPesas: View {
         .sheet(isPresented: $anotando) {
             NuevaSerie(pesas: pesas, ejercicio: ejercicioElegido)
         }
+        .sheet(item: $corrigiendo) { serie in
+            EditorDeSerie(ejercicio: serie.ejercicio,
+                          repeticionesIniciales: serie.repeticiones,
+                          kilosIniciales: serie.kilos) { repeticiones, kilos in
+                pesas.reemplazar(serie, repeticiones: repeticiones, kilos: kilos)
+            }
+        }
     }
 
     private var estado: String {
@@ -67,13 +75,17 @@ struct PantallaPesas: View {
     // MARK: Lo de hoy, ejercicio por ejercicio
 
     private var hoy: some View {
-        Bloque(titulo: "Hoy", pie: "Tocá el más para repetir la última serie igual.") {
+        Bloque(titulo: "Hoy",
+               pie: "Tocá el más para repetir la última serie igual. Mantené "
+                  + "apretada una serie para cambiarla o borrarla.") {
             ForEach(enumerar(pesas.ejerciciosDeHoy)) { fila in
                 if fila.puesto > 0 { Linea() }
-                EjercicioDeHoy(pesas: pesas, ejercicio: fila.valor) {
-                    ejercicioElegido = fila.valor
-                    anotando = true
-                }
+                EjercicioDeHoy(pesas: pesas, ejercicio: fila.valor,
+                               anotarOtra: {
+                                   ejercicioElegido = fila.valor
+                                   anotando = true
+                               },
+                               corregir: { corrigiendo = $0 })
             }
         }
     }
@@ -102,6 +114,7 @@ private struct EjercicioDeHoy: View {
     @ObservedObject var pesas: Pesas
     let ejercicio: String
     let anotarOtra: () -> Void
+    let corregir: (Serie) -> Void
 
     var body: some View {
         let series = pesas.seriesDeHoy(de: ejercicio)
@@ -121,6 +134,9 @@ private struct EjercicioDeHoy: View {
                             .padding(.vertical, 4)
                             .background(Capsule().fill(Paleta.acento.opacity(0.16)))
                             .contextMenu {
+                                Button { corregir(serie) } label: {
+                                    Label("Cambiar esta serie", systemImage: "pencil")
+                                }
                                 Button(role: .destructive) {
                                     pesas.borrar(serie)
                                 } label: {

@@ -41,6 +41,24 @@ final class Diario: ObservableObject {
         subir()
     }
 
+    /// Corrige cuántos scoops fueron, sin cambiar la hora.
+    func reemplazar(_ c: Consumo, cantidad: Double) {
+        guard let donde = consumo.firstIndex(where: { $0.id == c.id }), cantidad > 0 else { return }
+        consumo[donde].cantidad = cantidad
+        almacen.reescribirConsumo(consumo)
+        subir()
+    }
+
+    /// Anota una cantidad cualquiera, no solo 1 o medio.
+    func anotarScoops(_ cuantos: Double, cuando: Date) {
+        guard cuantos > 0 else { return }
+        let nuevo = Consumo(instante: cuando, cantidad: cuantos, que: "proteína")
+        consumo.insert(nuevo, at: 0)
+        consumo.sort { $0.instante > $1.instante }
+        almacen.reescribirConsumo(consumo)
+        subir()
+    }
+
     func borrar(_ c: Consumo) {
         consumo.removeAll { $0.id == c.id }
         almacen.reescribirConsumo(consumo)
@@ -114,6 +132,16 @@ final class Diario: ObservableObject {
                           detalle: detalle.trimmingCharacters(in: .whitespaces))
         almacen.agregarGasto(nuevo)
         gastos.insert(nuevo, at: 0)
+        subir()
+    }
+
+    /// Corrige un gasto ya cargado. La fecha queda como estaba.
+    func reemplazar(_ g: Gasto, monto: Double, categoria: String, detalle: String) {
+        guard let donde = gastos.firstIndex(where: { $0.id == g.id }), monto > 0 else { return }
+        gastos[donde].monto = monto
+        gastos[donde].categoria = categoria
+        gastos[donde].detalle = detalle.trimmingCharacters(in: .whitespaces)
+        almacen.reescribirGastos(gastos)
         subir()
     }
 

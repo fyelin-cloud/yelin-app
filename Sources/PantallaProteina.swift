@@ -4,6 +4,9 @@ import SwiftUI
 struct PantallaProteina: View {
     @ObservedObject var diario: Diario
 
+    @State private var otraCantidad = false
+    @State private var corrigiendo: Consumo?
+
     var body: some View {
         Pantalla {
             Hero(numero: Kilos.texto(diario.scoopsDeHoy),
@@ -17,29 +20,38 @@ struct PantallaProteina: View {
                 Boton(texto: "+ ½") { diario.anotarScoops(0.5) }
             }
 
+            Bloque {
+                Accion(texto: "Anotar otra cantidad", simbolo: "plus.circle") {
+                    otraCantidad = true
+                }
+            }
+
             Bloque(titulo: "Hoy",
                    pie: diario.consumoDeHoy.isEmpty ? nil
-                      : "Mantené apretado para borrar.") {
+                      : "Tocá para corregir la cantidad. Mantené apretado para borrar.") {
                 if diario.consumoDeHoy.isEmpty {
                     Vacio("Nada anotado todavía.")
                 } else {
                     ForEach(enumerar(diario.consumoDeHoy)) { fila in
                         if fila.puesto > 0 { Linea() }
-                        Celda {
-                            HStack {
-                                Text(Kilos.texto(fila.valor.cantidad)
-                                     + (fila.valor.cantidad == 1 ? " scoop" : " scoops"))
-                                    .font(.system(size: 15, weight: .medium))
-                                    .monospacedDigit()
-                                    .foregroundColor(Paleta.texto)
-                                Spacer()
-                                Text(fila.valor.instante.formatted(date: .omitted,
-                                                                   time: .shortened))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Paleta.suave)
+                        Button { corrigiendo = fila.valor } label: {
+                            Celda {
+                                HStack {
+                                    Text(Kilos.texto(fila.valor.cantidad)
+                                         + (fila.valor.cantidad == 1 ? " scoop" : " scoops"))
+                                        .font(.system(size: 15, weight: .medium))
+                                        .monospacedDigit()
+                                        .foregroundColor(Paleta.texto)
+                                    Spacer()
+                                    Text(fila.valor.instante.formatted(date: .omitted,
+                                                                       time: .shortened))
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Paleta.suave)
+                                }
                             }
+                            .contentShape(Rectangle())
                         }
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
                         .contextMenu {
                             Button(role: .destructive) {
                                 diario.borrar(fila.valor)
@@ -67,6 +79,14 @@ struct PantallaProteina: View {
             }
         }
         .navigationTitle("Proteína")
+        .sheet(isPresented: $otraCantidad) {
+            EditorDeScoops { cuantos in diario.anotarScoops(cuantos) }
+        }
+        .sheet(item: $corrigiendo) { c in
+            EditorDeScoops(cantidadInicial: c.cantidad) { cuantos in
+                diario.reemplazar(c, cantidad: cuantos)
+            }
+        }
     }
 
     private var promedio: String? {

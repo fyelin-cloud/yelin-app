@@ -174,7 +174,17 @@ final class Drive: NSObject {
             } else {
                 id = try await crearArchivo(nombre: nombre, carpeta: carpeta, token: token)
             }
-            let tipo = nombre.hasSuffix(".md") ? "text/markdown" : "text/csv"
+            let tipo: String
+            if nombre.hasSuffix(".html") {
+                // Importa: con text/html Drive lo abre en el navegador de una.
+                tipo = "text/html"
+            } else if nombre.hasSuffix(".md") {
+                tipo = "text/markdown"
+            } else if nombre.hasSuffix(".txt") {
+                tipo = "text/plain"
+            } else {
+                tipo = "text/csv"
+            }
             try await subirContenido(contenido, a: id, token: token, tipo: tipo)
         }
     }
