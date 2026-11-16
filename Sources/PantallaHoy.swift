@@ -10,6 +10,7 @@ struct PantallaHoy: View {
     @ObservedObject var sincronizador: Sincronizador
     @ObservedObject var diario: Diario
     @ObservedObject var pesas: Pesas
+    @ObservedObject var metas: Metas
     @Binding var ir: Seccion
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
@@ -100,10 +101,10 @@ struct PantallaHoy: View {
         case .notas:      PantallaNotas(diario: diario)
         case .gastos:     PantallaGastos(diario: diario)
         case .semana:     PantallaSemana(balanza: balanza, remo: remo,
-                                         diario: diario, pesas: pesas)
+                                         diario: diario, pesas: pesas, metas: metas)
         case .pesas:      PantallaPesas(pesas: pesas)
         default:          PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
-                                          remo: remo, pesas: pesas)
+                                          remo: remo, pesas: pesas, metas: metas)
         }
     }
 
@@ -173,17 +174,22 @@ struct PantallaHoy: View {
 
     private var estaSemana: some View {
         let s = semana
+        let o = metas.objetivos
         return Bloque(titulo: "Esta semana") {
             Celda {
                 HStack(spacing: 0) {
                     Resumido(valor: s.metros.ahora > 0 ? Kilos.grande(s.metros.ahora) : "—",
-                             rotulo: "metros")
+                             rotulo: o.metrosPorSemana.map {
+                                 "de " + Kilos.grande($0) + " m"
+                             } ?? "metros")
                     Separador()
                     Resumido(valor: s.volumenDePesas.ahora > 0
                                   ? Kilos.grande(s.volumenDePesas.ahora) : "—",
                              rotulo: "kg de pesas")
                     Separador()
-                    Resumido(valor: "\(s.diasActivos)/7", rotulo: "días activos")
+                    Resumido(valor: o.diasPorSemana.map { "\(s.diasActivos)/\($0)" }
+                                  ?? "\(s.diasActivos)/7",
+                             rotulo: "días activos")
                 }
             }
         }
@@ -194,7 +200,7 @@ struct PantallaHoy: View {
     private var pie: some View {
         NavigationLink {
             PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
-                            remo: remo, pesas: pesas)
+                            remo: remo, pesas: pesas, metas: metas)
         } label: {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {

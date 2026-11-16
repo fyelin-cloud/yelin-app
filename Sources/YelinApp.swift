@@ -7,6 +7,7 @@ struct AplicacionYelin: App {
     @StateObject private var remo: LectorDeRemo
     @StateObject private var diario: Diario
     @StateObject private var pesas: Pesas
+    @StateObject private var metas: Metas
 
     @State private var abriendo = true
 
@@ -19,6 +20,7 @@ struct AplicacionYelin: App {
         let cuaderno = Diario(sincronizador: compartido)
         _diario = StateObject(wrappedValue: cuaderno)
         _pesas = StateObject(wrappedValue: Pesas(sincronizador: compartido))
+        _metas = StateObject(wrappedValue: Metas(sincronizador: compartido))
         Avisos.compartido.arrancar(sincronizador: compartido, diario: cuaderno)
     }
 
@@ -26,7 +28,7 @@ struct AplicacionYelin: App {
         WindowGroup {
             ZStack {
                 Raiz(sincronizador: sincronizador, balanza: balanza,
-                     remo: remo, diario: diario, pesas: pesas)
+                     remo: remo, diario: diario, pesas: pesas, metas: metas)
 
                 if abriendo {
                     PantallaDeApertura {
@@ -94,6 +96,7 @@ struct Raiz: View {
     @ObservedObject var remo: LectorDeRemo
     @ObservedObject var diario: Diario
     @ObservedObject var pesas: Pesas
+    @ObservedObject var metas: Metas
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
     @State private var seccion: Seccion = .hoy
@@ -141,13 +144,14 @@ struct Raiz: View {
         switch s {
         case .hoy:
             PantallaHoy(balanza: balanza, remo: remo, sincronizador: sincronizador,
-                        diario: diario, pesas: pesas, ir: $seccion)
+                        diario: diario, pesas: pesas, metas: metas, ir: $seccion)
         case .semana:
-            PantallaSemana(balanza: balanza, remo: remo, diario: diario, pesas: pesas)
+            PantallaSemana(balanza: balanza, remo: remo, diario: diario,
+                           pesas: pesas, metas: metas)
         case .constancia:
             PantallaConstancia(balanza: balanza, remo: remo, pesas: pesas)
         case .peso:
-            PantallaBalanza(balanza: balanza, sincronizador: sincronizador)
+            PantallaBalanza(balanza: balanza, sincronizador: sincronizador, metas: metas)
         case .remo:
             PantallaRemo(remo: remo)
         case .pesas:
@@ -160,7 +164,7 @@ struct Raiz: View {
             PantallaGastos(diario: diario)
         case .ajustes:
             PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
-                            remo: remo, pesas: pesas)
+                            remo: remo, pesas: pesas, metas: metas)
         }
     }
 }
@@ -246,6 +250,7 @@ private struct FilaLateral: View {
 struct PantallaBalanza: View {
     @ObservedObject var balanza: LectorDeBalanza
     @ObservedObject var sincronizador: Sincronizador
+    @ObservedObject var metas: Metas
 
     @State private var cargandoAMano = false
     @State private var corrigiendo: Pesada?
@@ -259,9 +264,11 @@ struct PantallaBalanza: View {
                  alPie: balanza.pesadas.isEmpty ? nil
                       : "\(balanza.pesadas.count) pesadas guardadas")
 
+            if metas.objetivos.peso != nil { objetivo }
+
             Bloque {
                 Navega(texto: "Historial y tendencia", simbolo: "chart.xyaxis.line") {
-                    PantallaPeso(pesadas: balanza.pesadas)
+                    PantallaPeso(pesadas: balanza.pesadas, metas: metas)
                 }
                 Linea()
                 Accion(texto: "Cargar una pesada a mano", simbolo: "plus.circle") {
@@ -317,6 +324,37 @@ struct PantallaBalanza: View {
                 Button { balanza.buscarDeNuevo() } label: {
                     Image(systemName: "arrow.clockwise")
                 }
+            }
+        }
+    }
+
+    /// Cuánto falta para el peso objetivo y, si la tendencia apunta para
+    /// ese lado, en qué fecha se llegaría.
+    private var objetivo: some View {
+        let o = metas.objetivos
+        let ultimo = balanza.pesadas.first?.kg
+        let puntos = Analisis.porDia(balanza.pesadas)
+        let porSemana = Analisis.tendenciaPorSemana(puntos)
+        let falta = o.faltaParaElPeso(desde: ultimo)
+        let cuando = o.fechaEstimada(desde: ultimo, porSemana: porSemana)
+
+        return Bloque(titulo: "Objetivo",
+                      pie: cuando == nil && falta != nil
+                         ? "La fecha aparece cuando la tendencia apunta al objetivo."
+                         : "La fecha es la cuenta de dividir lo que falta por lo que "
+                         + "viene cambiando por semana. No es una promesa.") {
+            Fila("Peso al que apuntás", String(format: "%.1f kg", o.peso ?? 0))
+            Linea()
+            if let falta {
+                Fila(falta < 0 ? "Falta bajar" : "Falta subir",
+                     String(format: "%.2f kg", abs(falta)),
+                     resaltado: abs(falta) < 0.3)
+            } else {
+                Fila("Falta", "pesate para saber")
+            }
+            if let cuando {
+                Linea()
+                Fila("Llegarías el", Fechas.conAnio(cuando))
             }
         }
     }

@@ -18,6 +18,8 @@ enum Panel {
         let consumo = almacen.cargarConsumo()
         let gastos = almacen.cargarGastos()
         let notas = almacen.cargarNotas()
+        let objetivos = almacen.cargarObjetivos()
+        let carpetas = almacen.cargarCarpetas()
 
         let puntos = Analisis.porDia(pesadas)
         let promedio = Analisis.promedioMovil(puntos)
@@ -29,6 +31,7 @@ enum Panel {
         h += cabecera()
         h += encabezado()
         h += tiras(puntos: puntos, promedio: promedio, semana: semana, constancia: constancia)
+        h += bloqueDeObjetivos(objetivos, semana: semana, puntos: puntos, gastos: gastos)
         h += bloqueDePeso(puntos: puntos, promedio: promedio, pesadas: pesadas)
         h += bloqueDeSemana(semana)
         h += bloqueDeConstancia(constancia)
@@ -36,7 +39,7 @@ enum Panel {
         h += bloqueDePesas(series)
         h += bloqueDeGastos(gastos)
         h += bloqueDeProteina(consumo)
-        h += bloqueDeNotas(notas)
+        h += bloqueDeNotas(notas, carpetas: carpetas)
         h += pie()
         return h
     }
@@ -185,6 +188,76 @@ enum Panel {
         <div class="tira"><div class="n \(clase)">\(numero)</div>\
         <div class="r">\(esc(rotulo))</div><div class="d">\(esc(detalle))</div></div>
         """
+    }
+
+    // MARK: - Objetivos
+
+    private static func bloqueDeObjetivos(_ o: Objetivos, semana: Semana,
+                                          puntos: [PuntoDePeso],
+                                          gastos: [Gasto]) -> String {
+        guard o.hayAlguno else { return "" }
+        var h = "<section><h2>Objetivos</h2><table>"
+
+        if let objetivo = o.peso {
+            let actual = puntos.last?.kg
+            h += filaHTML("Peso al que apunta", coma(objetivo, 1) + " kg")
+            if let falta = o.faltaParaElPeso(desde: actual) {
+                h += filaHTML(falta < 0 ? "Falta bajar" : "Falta subir",
+                              coma(abs(falta), 2) + " kg")
+            }
+            if let cuando = o.fechaEstimada(desde: actual,
+                                            porSemana: Analisis.tendenciaPorSemana(puntos)) {
+                h += filaHTML("Llegaría el", fechaLarga(cuando))
+            }
+        }
+        h += "</table>"
+
+        if let meta = o.metrosPorSemana {
+            h += barra("Metros de remo esta semana", semana.metros.ahora, meta, " m")
+        }
+        if let meta = o.diasPorSemana {
+            h += barra("Días de entrenamiento", Double(semana.diasActivos), Double(meta), "")
+        }
+        if let meta = o.scoopsPorDia {
+            h += barra("Scoops por día", semana.scoops.ahora / 7, meta, "")
+        }
+        if let tope = o.topeDeGastos {
+            let calendario = Calendar.current
+            let mes = calendario.component(.month, from: Date())
+            let anio = calendario.component(.year, from: Date())
+            let delMes = gastos.filter {
+                calendario.component(.month, from: $0.instante) == mes
+                    && calendario.component(.year, from: $0.instante) == anio
+            }.reduce(0.0) { $0 + $1.monto }
+            h += barra("Gastos del mes", delMes, tope, "", alReves: true)
+        }
+
+        h += "<p class=\"vacio\" style=\"margin-bottom:0\">La fecha del peso es la "
+        h += "cuenta de dividir lo que falta por lo que viene cambiando por semana. "
+        h += "No es una promesa.</p>"
+        return h + "</section>"
+    }
+
+    /// Una barra de avance con su rótulo.
+    private static func barra(_ rotulo: String, _ hecho: Double, _ meta: Double,
+                              _ unidad: String, alReves: Bool = false) -> String {
+        guard meta > 0 else { return "" }
+        let parte = min(1, max(0, hecho / meta))
+        let listo = hecho >= meta
+        let color = alReves ? (listo ? "var(--mal)" : "var(--acento)")
+                            : (listo ? "var(--bien)" : "var(--acento)")
+        let nota: String
+        if listo {
+            nota = alReves ? "Se pasó por " + miles(hecho - meta) + unidad : "Cumplido"
+        } else {
+            nota = "Faltan " + miles(meta - hecho) + unidad
+        }
+        var h = "<div style=\"margin-top:16px\">"
+        h += "<div style=\"display:flex;justify-content:space-between;font-size:14px\">"
+        h += "<span>\(esc(rotulo))</span><span>\(miles(hecho)) / \(miles(meta))\(esc(unidad))</span></div>"
+        h += "<div class=\"barra\"><i style=\"width:\(fmt(parte * 100))%;background:\(color)\"></i></div>"
+        h += "<div style=\"font-size:11px;color:var(--suave);margin-top:5px\">\(esc(nota))</div>"
+        return h + "</div>"
     }
 
     // MARK: - Peso
@@ -483,21 +556,46 @@ enum Panel {
 
     // MARK: - Notas
 
-    private static func bloqueDeNotas(_ notas: [Nota]) -> String {
+    private static func bloqueDeNotas(_ notas: [Nota], carpetas: [String]) -> String {
         guard !notas.isEmpty else { return "" }
-        var h = "<section><h2>Notas</h2><table>"
+        var h = "<section><h2>Notas — \(notas.count) en \(carpetas.count) carpetas</h2>"
+
         let importantes = notas.filter(\.importante)
         if !importantes.isEmpty {
-            h += "<tr><th>Marcadas como importantes</th><th class=\"num\">Cuándo</th></tr>"
-            for n in importantes.prefix(10) {
-                h += "<tr><td>\(esc(n.titulo))</td><td class=\"num chico\">\(diaYMes(n.instante))</td></tr>"
+            h += "<table><tr><th>Marcadas como importantes</th><th class=\"num\">Carpeta</th>"
+            h += "<th class=\"num\">Cuándo</th></tr>"
+            for n in importantes.prefix(12) {
+                h += "<tr><td>\(esc(n.titulo))</td>"
+                h += "<td class=\"num chico\">\(esc(n.carpeta.isEmpty ? "—" : n.carpeta))</td>"
+                h += "<td class=\"num chico\">\(diaYMes(n.instante))</td></tr>"
             }
+            h += "</table>"
         }
-        h += "<tr><th style=\"padding-top:18px\">Últimas</th><th class=\"num\" style=\"padding-top:18px\">Cuándo</th></tr>"
-        for n in notas.sorted(by: { $0.instante > $1.instante }).prefix(10) {
-            h += "<tr><td>\(esc(n.titulo))</td><td class=\"num chico\">\(diaYMes(n.instante))</td></tr>"
+
+        // Una tabla por carpeta, y al final las que no están en ninguna.
+        var grupos: [(String, [Nota])] = carpetas.map { carpeta in
+            (carpeta, notas.filter { $0.carpeta == carpeta })
         }
-        return h + "</table></section>"
+        let sueltas = notas.filter { $0.carpeta.isEmpty }
+        if !sueltas.isEmpty { grupos.append(("Sin carpeta", sueltas)) }
+
+        for (nombre, adentro) in grupos where !adentro.isEmpty {
+            h += "<table style=\"margin-top:18px\"><tr><th>\(esc(nombre))</th>"
+            h += "<th class=\"num\">\(adentro.count)</th></tr>"
+            for n in adentro.sorted(by: { $0.instante > $1.instante }).prefix(12) {
+                h += "<tr><td>\(n.importante ? "★ " : "")\(esc(n.titulo))</td>"
+                h += "<td class=\"num chico\">\(diaYMes(n.instante))</td></tr>"
+            }
+            if adentro.count > 12 {
+                h += "<tr><td class=\"chico\" colspan=\"2\">Y \(adentro.count - 12) más.</td></tr>"
+            }
+            h += "</table>"
+        }
+        return h + "</section>"
+    }
+
+    private static func fechaLarga(_ f: Date) -> String {
+        formato("d 'de' MMMM 'de' yyyy").string(from: f)
     }
 
     private static func pie() -> String {

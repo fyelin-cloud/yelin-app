@@ -11,6 +11,7 @@ struct PantallaAjustes: View {
     @ObservedObject var balanza: LectorDeBalanza
     @ObservedObject var remo: LectorDeRemo
     @ObservedObject var pesas: Pesas
+    @ObservedObject var metas: Metas
 
     @State private var estadoDelAviso = "Sin activar"
 
@@ -73,6 +74,12 @@ struct PantallaAjustes: View {
             }
 
             Bloque {
+                Navega(texto: "Objetivos", simbolo: "target",
+                       detalle: metas.objetivos.hayAlguno
+                              ? "\(metas.objetivos.cuantos)" : "Ninguno") {
+                    PantallaObjetivos(metas: metas)
+                }
+                Linea()
                 Navega(texto: "Recordatorios", simbolo: "bell",
                        detalle: Avisos.compartido.lista.isEmpty ? "Ninguno"
                               : "\(Avisos.compartido.lista.count)") {
@@ -151,6 +158,14 @@ struct PantallaArchivos: View {
                 Compartir("Categorías de gastos", almacen.urlCategorias)
                 Linea()
                 Compartir("Ejercicios de pesas", almacen.urlEjercicios)
+                Linea()
+                Compartir("Carpetas de notas", almacen.urlCarpetas)
+            }
+
+            Bloque(titulo: "Lo que configuraste") {
+                Compartir("Objetivos", almacen.urlObjetivos)
+                Linea()
+                Compartir("Recordatorios", almacen.urlRecordatorios)
             }
         }
         .navigationTitle("Archivos")

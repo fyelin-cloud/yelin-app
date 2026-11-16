@@ -4,13 +4,15 @@ import Charts
 /// El historial de peso: gráfico, promedio móvil y tendencia.
 struct PantallaPeso: View {
     let pesadas: [Pesada]
+    @ObservedObject var metas: Metas
 
     private let puntos: [PuntoDePeso]
     private let promedio: [PuntoDePeso]
     private let sospechosas: Set<UUID>
 
-    init(pesadas: [Pesada]) {
+    init(pesadas: [Pesada], metas: Metas) {
         self.pesadas = pesadas
+        self.metas = metas
         let porDia = Analisis.porDia(pesadas)
         let media = Analisis.promedioMovil(porDia)
         self.puntos = porDia
@@ -68,6 +70,18 @@ struct PantallaPeso: View {
         lista.append(("Tendencia", tendencia))
         lista.append(("Días con registro", "\(puntos.count)"))
         lista.append(("Pesadas en total", "\(pesadas.count)"))
+        if let objetivo = metas.objetivos.peso {
+            lista.append(("Objetivo", String(format: "%.1f kg", objetivo)))
+            if let falta = metas.objetivos.faltaParaElPeso(desde: puntos.last?.kg) {
+                lista.append((falta < 0 ? "Falta bajar" : "Falta subir",
+                              String(format: "%.2f kg", abs(falta))))
+            }
+            if let cuando = metas.objetivos.fechaEstimada(
+                desde: puntos.last?.kg,
+                porSemana: Analisis.tendenciaPorSemana(puntos)) {
+                lista.append(("Llegarías el", Fechas.conAnio(cuando)))
+            }
+        }
         return lista
     }
 

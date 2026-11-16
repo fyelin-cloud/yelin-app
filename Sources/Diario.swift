@@ -8,6 +8,7 @@ final class Diario: ObservableObject {
 
     @Published private(set) var consumo: [Consumo] = []
     @Published private(set) var notas: [Nota] = []
+    @Published private(set) var carpetas: [String] = []
     @Published private(set) var gastos: [Gasto] = []
 
     let sincronizador: Sincronizador
@@ -17,6 +18,7 @@ final class Diario: ObservableObject {
         self.sincronizador = sincronizador
         consumo = almacen.cargarConsumo().sorted { $0.instante > $1.instante }
         notas = almacen.cargarNotas().sorted { $0.instante > $1.instante }
+        carpetas = almacen.cargarCarpetas()
         gastos = almacen.cargarGastos().sorted { $0.instante > $1.instante }
     }
 
@@ -81,18 +83,77 @@ final class Diario: ObservableObject {
 
     // MARK: Notas
 
-    func guardarNota(texto: String, importante: Bool) {
+    // MARK: Carpetas
+
+    /// Agrega una carpeta. Los nombres no distinguen mayúsculas, así que
+    /// "Finanzas" y "finanzas" son la misma.
+    func agregarCarpeta(_ nombre: String) {
+        let limpio = nombre.trimmingCharacters(in: .whitespaces)
+        guard !limpio.isEmpty,
+              !carpetas.contains(where: { $0.caseInsensitiveCompare(limpio) == .orderedSame })
+        else { return }
+        carpetas.append(limpio)
+        carpetas.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        almacen.guardarCarpetas(carpetas)
+        subir()
+    }
+
+    /// Renombra una carpeta y arrastra con ella todas sus notas.
+    func renombrarCarpeta(_ vieja: String, a nueva: String) {
+        let limpio = nueva.trimmingCharacters(in: .whitespaces)
+        guard !limpio.isEmpty, limpio != vieja else { return }
+        if let donde = carpetas.firstIndex(of: vieja) { carpetas[donde] = limpio }
+        carpetas.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        for i in notas.indices where notas[i].carpeta == vieja { notas[i].carpeta = limpio }
+        almacen.guardarCarpetas(carpetas)
+        almacen.reescribirNotas(notas)
+        subir()
+    }
+
+    /// Saca la carpeta. **Las notas no se borran**: quedan sin carpeta.
+    func borrarCarpeta(_ nombre: String) {
+        carpetas.removeAll { $0 == nombre }
+        for i in notas.indices where notas[i].carpeta == nombre { notas[i].carpeta = "" }
+        almacen.guardarCarpetas(carpetas)
+        almacen.reescribirNotas(notas)
+        subir()
+    }
+
+    func mover(_ nota: Nota, a carpeta: String) {
+        guard let donde = notas.firstIndex(where: { $0.id == nota.id }) else { return }
+        notas[donde].carpeta = carpeta
+        almacen.reescribirNotas(notas)
+        subir()
+    }
+
+    /// Las notas de una carpeta. Con `nil` devuelve las que no tienen ninguna.
+    func notas(en carpeta: String?) -> [Nota] {
+        guard let carpeta else { return notas.filter { $0.carpeta.isEmpty } }
+        return notas.filter { $0.carpeta == carpeta }
+    }
+
+    func cuantasEn(_ carpeta: String) -> Int {
+        notas.filter { $0.carpeta == carpeta }.count
+    }
+
+    var sinCarpeta: Int { notas.filter { $0.carpeta.isEmpty }.count }
+
+    // MARK: Notas
+
+    func guardarNota(texto: String, importante: Bool, carpeta: String = "") {
         let limpio = texto.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !limpio.isEmpty else { return }
-        let nueva = Nota(instante: Date(), texto: limpio, importante: importante)
+        let nueva = Nota(instante: Date(), texto: limpio,
+                         importante: importante, carpeta: carpeta)
         notas.insert(nueva, at: 0)
         ordenarNotas()
         almacen.reescribirNotas(notas)
         subir()
     }
 
-    func reemplazar(_ nota: Nota, texto: String, importante: Bool) {
+    func reemplazar(_ nota: Nota, texto: String, importante: Bool, carpeta: String) {
         guard let donde = notas.firstIndex(where: { $0.id == nota.id }) else { return }
+        notas[donde].carpeta = carpeta
         let limpio = texto.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !limpio.isEmpty else { return }
         notas[donde].texto = limpio
@@ -119,7 +180,10 @@ final class Diario: ObservableObject {
     func notasQueCoinciden(con busqueda: String) -> [Nota] {
         let texto = busqueda.trimmingCharacters(in: .whitespaces)
         guard !texto.isEmpty else { return notas }
-        return notas.filter { $0.texto.localizedCaseInsensitiveContains(texto) }
+        return notas.filter {
+            $0.texto.localizedCaseInsensitiveContains(texto)
+                || $0.carpeta.localizedCaseInsensitiveContains(texto)
+        }
     }
 
     // MARK: Gastos

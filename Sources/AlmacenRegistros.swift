@@ -16,8 +16,9 @@ extension Almacen {
 
     func prepararRegistros() {
         crearSiFalta(urlConsumo, encabezado: "instante,que,cantidad")
-        crearSiFalta(urlNotas, encabezado: "instante,importante,texto")
+        crearSiFalta(urlNotas, encabezado: "instante,importante,carpeta,texto")
         crearSiFalta(urlGastos, encabezado: "instante,categoria,monto,detalle")
+        prepararCarpetas()
 
         if !FileManager.default.fileExists(atPath: urlCategorias.path) {
             let cabecera = "# Las categorías de gastos, una por línea.\n"
@@ -49,22 +50,63 @@ extension Almacen {
 
     // MARK: Notas
 
+    /// Lee las notas con carpeta y también las del formato viejo, que tenían
+    /// tres columnas y ninguna carpeta. Esas quedan sin carpeta hasta que se
+    /// muevan a una.
     func cargarNotas() -> [Nota] {
         leerLineas(urlNotas).compactMap { campos in
             guard campos.count >= 3, let instante = fechas.date(from: campos[0]) else { return nil }
-            return Nota(instante: instante, texto: campos[2], importante: campos[1] == "si")
+            if campos.count >= 4 {
+                return Nota(instante: instante, texto: campos[3],
+                            importante: campos[1] == "si", carpeta: campos[2])
+            }
+            return Nota(instante: instante, texto: campos[2],
+                        importante: campos[1] == "si", carpeta: "")
         }
     }
 
     func agregarNota(_ n: Nota) {
         agregar(CSV.linea([fechas.string(from: n.instante),
-                           n.importante ? "si" : "no", n.texto]), a: urlNotas)
+                           n.importante ? "si" : "no", n.carpeta, n.texto]), a: urlNotas)
     }
 
     func reescribirNotas(_ lista: [Nota]) {
-        escribir(["instante,importante,texto"] + lista.map {
-            CSV.linea([fechas.string(from: $0.instante), $0.importante ? "si" : "no", $0.texto])
+        escribir(["instante,importante,carpeta,texto"] + lista.map {
+            CSV.linea([fechas.string(from: $0.instante), $0.importante ? "si" : "no",
+                       $0.carpeta, $0.texto])
         }, en: urlNotas)
+    }
+
+    // MARK: Carpetas de notas
+
+    var urlCarpetas: URL { documentos.appendingPathComponent("carpetas-notas.txt") }
+
+    static let carpetasPorDefecto = ["Facultad", "Personal", "Ideas"]
+
+    func prepararCarpetas() {
+        guard !FileManager.default.fileExists(atPath: urlCarpetas.path) else { return }
+        let cabecera = "# Las carpetas de notas, una por línea.\n"
+            + "# Sirven para separar por materia o por tema.\n"
+            + "# Se pueden cambiar desde la app o acá; las que empiezan con # no se usan.\n\n"
+        try? (cabecera + Self.carpetasPorDefecto.joined(separator: "\n") + "\n")
+            .write(to: urlCarpetas, atomically: true, encoding: .utf8)
+    }
+
+    func cargarCarpetas() -> [String] {
+        guard let texto = try? String(contentsOf: urlCarpetas, encoding: .utf8) else {
+            return Self.carpetasPorDefecto
+        }
+        return texto.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+    }
+
+    func guardarCarpetas(_ lista: [String]) {
+        let cabecera = "# Las carpetas de notas, una por línea.\n"
+            + "# Sirven para separar por materia o por tema.\n"
+            + "# Se pueden cambiar desde la app o acá; las que empiezan con # no se usan.\n\n"
+        try? (cabecera + lista.joined(separator: "\n") + "\n")
+            .write(to: urlCarpetas, atomically: true, encoding: .utf8)
     }
 
     // MARK: Gastos

@@ -6,6 +6,7 @@ struct PantallaSemana: View {
     @ObservedObject var remo: LectorDeRemo
     @ObservedObject var diario: Diario
     @ObservedObject var pesas: Pesas
+    @ObservedObject var metas: Metas
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
 
@@ -59,6 +60,8 @@ struct PantallaSemana: View {
                      color: s.diasActivos > 0 ? Paleta.acento : Paleta.suave)
             }
 
+            if metas.objetivos.hayAlguno { objetivos(s) }
+
             Bloque(titulo: "Remo día por día",
                    pie: "El punto azul marca los días que también hiciste pesas.") {
                 BarrasDeLaSemana(dias: s.metrosPorDia)
@@ -98,6 +101,34 @@ struct PantallaSemana: View {
             }
         }
         .navigationTitle("La semana")
+    }
+
+    /// Las barras de avance, solo de los objetivos que estén cargados.
+    @ViewBuilder
+    private func objetivos(_ s: Semana) -> some View {
+        let o = metas.objetivos
+        Bloque(titulo: "Objetivos de la semana",
+               pie: "Se cambian desde Ajustes → Objetivos.") {
+            if let meta = o.metrosPorSemana {
+                Progreso(rotulo: "Metros de remo", hecho: s.metros.ahora,
+                         meta: meta, unidad: " m")
+            }
+            if let meta = o.diasPorSemana {
+                if o.metrosPorSemana != nil { Linea() }
+                Progreso(rotulo: "Días de entrenamiento",
+                         hecho: Double(s.diasActivos), meta: Double(meta))
+            }
+            if let meta = o.scoopsPorDia {
+                if o.metrosPorSemana != nil || o.diasPorSemana != nil { Linea() }
+                Progreso(rotulo: "Scoops por día", hecho: s.scoops.ahora / 7,
+                         meta: meta)
+            }
+            if let tope = o.topeDeGastos {
+                Linea()
+                Progreso(rotulo: "Gastos del mes", hecho: diario.totalDelMes(),
+                         meta: tope, unidad: "", alReves: true)
+            }
+        }
     }
 
     // MARK: Textos

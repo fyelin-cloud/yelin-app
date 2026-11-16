@@ -19,13 +19,17 @@ enum Resumen {
         l.append("")
         l.append(contentsOf: bloqueDeRemo(sesiones))
         l.append("")
+        l.append(contentsOf: bloqueDeObjetivos(almacen.cargarObjetivos(),
+                                               pesadas: almacen.cargarPesadas()))
+        l.append("")
         l.append(contentsOf: bloqueDePesas(almacen.cargarSeries()))
         l.append("")
         l.append(contentsOf: bloqueDeProteina(almacen.cargarConsumo()))
         l.append("")
         l.append(contentsOf: bloqueDeGastos(almacen))
         l.append("")
-        l.append(contentsOf: bloqueDeNotas(almacen.cargarNotas()))
+        l.append(contentsOf: bloqueDeNotas(almacen.cargarNotas(),
+                                           carpetas: almacen.cargarCarpetas()))
         l.append("")
         l.append("## Archivos")
         l.append("")
@@ -102,6 +106,39 @@ enum Resumen {
         l.append("Nota: la distancia y el ritmo los calcula la app a partir del ritmo")
         l.append("instantáneo que informa la máquina, que no manda distancia. Falta")
         l.append("calibrarlos contra el display del aparato.")
+        return l
+    }
+
+    private static func bloqueDeObjetivos(_ o: Objetivos, pesadas: [Pesada]) -> [String] {
+        guard o.hayAlguno else { return [] }
+        var l = ["## Objetivos", ""]
+        if let peso = o.peso {
+            l.append(String(format: "- Peso al que apunta: %.1f kg", peso))
+            let puntos = Analisis.porDia(pesadas)
+            if let falta = o.faltaParaElPeso(desde: puntos.last?.kg) {
+                l.append(String(format: "- %@: %.2f kg",
+                                falta < 0 ? "Falta bajar" : "Falta subir", abs(falta)))
+            }
+            if let cuando = o.fechaEstimada(desde: puntos.last?.kg,
+                                            porSemana: Analisis.tendenciaPorSemana(puntos)) {
+                l.append("- Llegaría alrededor del \(fechaCorta(cuando)), si la tendencia se mantiene")
+            }
+        }
+        if let metros = o.metrosPorSemana {
+            l.append(String(format: "- Metros de remo por semana: %.0f", metros))
+        }
+        if let dias = o.diasPorSemana {
+            l.append("- Días de entrenamiento por semana: \(dias)")
+        }
+        if let scoops = o.scoopsPorDia {
+            l.append(String(format: "- Scoops de proteína por día: %g", scoops))
+        }
+        if let tope = o.topeDeGastos {
+            l.append(String(format: "- Tope de gastos por mes: %.0f", tope))
+        }
+        l.append("")
+        l.append("Los objetivos los puso Facundo a mano. La fecha del peso es una "
+                 + "proyección de la tendencia, no una promesa.")
         return l
     }
 
@@ -200,27 +237,41 @@ enum Resumen {
         return l
     }
 
-    private static func bloqueDeNotas(_ notas: [Nota]) -> [String] {
+    private static func bloqueDeNotas(_ notas: [Nota], carpetas: [String]) -> [String] {
         var l = ["## Notas", ""]
         guard !notas.isEmpty else {
             l.append("Todavía no hay notas.")
             return l
         }
-        l.append("- Total: \(notas.count)")
+        l.append("- Total: \(notas.count), repartidas en \(carpetas.count) carpetas")
+
         let importantes = notas.filter(\.importante)
         if !importantes.isEmpty {
             l.append("- Marcadas como importantes:")
             for n in importantes.prefix(8) {
-                l.append("  - \(n.titulo) (\(fechaCorta(n.instante)))")
+                let donde = n.carpeta.isEmpty ? "" : ", \(n.carpeta)"
+                l.append("  - \(n.titulo) (\(fechaCorta(n.instante))\(donde))")
             }
         }
-        let ultimas = notas.sorted { $0.instante > $1.instante }.prefix(5)
-        l.append("- Últimas:")
-        for n in ultimas {
-            l.append("  - \(n.titulo) (\(fechaCorta(n.instante)))")
+
+        var grupos: [(String, [Nota])] = carpetas.map { carpeta in
+            (carpeta, notas.filter { $0.carpeta == carpeta })
         }
+        let sueltas = notas.filter { $0.carpeta.isEmpty }
+        if !sueltas.isEmpty { grupos.append(("Sin carpeta", sueltas)) }
+
+        for (nombre, adentro) in grupos where !adentro.isEmpty {
+            l.append("- \(nombre) (\(adentro.count)):")
+            for n in adentro.sorted(by: { $0.instante > $1.instante }).prefix(6) {
+                l.append("  - \(n.titulo) (\(fechaCorta(n.instante)))")
+            }
+            if adentro.count > 6 {
+                l.append("  - y \(adentro.count - 6) más")
+            }
+        }
+
         l.append("")
-        l.append("El texto completo de cada nota está en `notas.csv`.")
+        l.append("El texto completo de cada nota está en `notas.csv`, con su carpeta.")
         return l
     }
 

@@ -14,6 +14,8 @@ struct Nota: Identifiable {
     var instante: Date
     var texto: String
     var importante: Bool
+    /// Vacío quiere decir que todavía no está en ninguna carpeta.
+    var carpeta: String = ""
 
     var titulo: String {
         let primera = texto.split(separator: "\n").first.map(String.init) ?? texto

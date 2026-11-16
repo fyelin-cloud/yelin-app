@@ -350,3 +350,74 @@ struct Filas: View {
         }
     }
 }
+
+// MARK: - Avance contra un objetivo
+
+/// Una barra de avance con su rótulo. Se usa cuando hay un objetivo cargado.
+///
+/// `alReves` es para los gastos: ahí llenar la barra no es un logro, así que
+/// pasarse del tope la pone roja en vez de verde.
+struct Progreso: View {
+    let rotulo: String
+    let hecho: Double
+    let meta: Double
+    var unidad: String = ""
+    var alReves = false
+
+    private var parte: Double {
+        guard meta > 0 else { return 0 }
+        return min(1, max(0, hecho / meta))
+    }
+
+    private var listo: Bool { meta > 0 && hecho >= meta }
+
+    private var color: Color {
+        if alReves { return listo ? Tono.mal : Paleta.acento }
+        return listo ? Tono.bien : Paleta.acento
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(rotulo)
+                    .font(.system(size: 15))
+                    .foregroundColor(Paleta.texto)
+                Spacer(minLength: 8)
+                Text(numero(hecho) + " / " + numero(meta) + unidad)
+                    .font(.system(size: 14, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundColor(listo ? color : Paleta.texto)
+            }
+            GeometryReader { espacio in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Paleta.borde)
+                        .frame(height: 6)
+                    Capsule()
+                        .fill(color)
+                        .frame(width: max(parte > 0 ? 6 : 0, espacio.size.width * parte),
+                               height: 6)
+                }
+            }
+            .frame(height: 6)
+            Text(falta)
+                .font(.system(size: 11))
+                .foregroundColor(Paleta.suave)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+    }
+
+    private var falta: String {
+        guard meta > 0 else { return "" }
+        if listo {
+            return alReves ? "Te pasaste por " + numero(hecho - meta) + unidad
+                           : "Cumplido"
+        }
+        return "Faltan " + numero(meta - hecho) + unidad
+    }
+
+    private func numero(_ v: Double) -> String {
+        v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
+    }
+}
