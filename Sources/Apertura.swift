@@ -68,40 +68,38 @@ enum Frases {
     }
 }
 
-/// El logo de la app: la opción 82 del diseño, "fondo oscuro, Y5 en cursiva
-/// azul".
+/// El logo: la Y y el 5 en cursiva, sin caja ni fondo.
 ///
-/// Usa Inter ExtraBold Italic, que es la tipografía con la que se diseñó y
-/// que viaja incrustada en la app. Las proporciones salen del diseño
-/// original: el redondeo es 29/130 del lado, la letra 58/130, y entre la Y y
-/// el 5 hay -0,05 em.
+/// Van sueltas sobre la pantalla, para que no se vea ningún borde y todo
+/// quede como una sola superficie. Las letras casi se tocan y el color se va
+/// apagando de izquierda a derecha, así las dos se leen como un trazo solo.
+///
+/// La tipografía es Inter ExtraBold Italic, la del diseño, incrustada en la
+/// app. El fondo con la caja queda solo para el ícono, donde iOS obliga a que
+/// haya uno.
 struct Logo: View {
 
-    var tamano: CGFloat
+    /// El tamaño de la letra.
+    var cuerpo: CGFloat
+    /// Si es falso, el azul va parejo y no se apaga.
+    var desvanecido = true
 
     static let tipografia = "Inter-ExtraBoldItalic"
 
-    private var redondeo: CGFloat { tamano * 29 / 130 }
-    private var cuerpo: CGFloat { tamano * 58 / 130 }
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: redondeo, style: .continuous)
-            .fill(Paleta.superficie)
-            .overlay(letras)
-            .overlay(
-                RoundedRectangle(cornerRadius: redondeo, style: .continuous)
-                    .stroke(Paleta.borde, lineWidth: 1)
-            )
-            .frame(width: tamano, height: tamano)
+    private var degradado: LinearGradient {
+        LinearGradient(colors: [Paleta.acento, Paleta.acento.opacity(0.28)],
+                       startPoint: .leading, endPoint: .trailing)
     }
 
-    private var letras: some View {
-        HStack(spacing: -cuerpo * 0.05) {
+    var body: some View {
+        HStack(spacing: -cuerpo * 0.14) {
             Text("Y")
             Text("5")
         }
         .font(.custom(Self.tipografia, size: cuerpo))
-        .foregroundColor(Paleta.acento)
+        .foregroundStyle(desvanecido ? AnyShapeStyle(degradado)
+                                     : AnyShapeStyle(Paleta.acento))
+        .fixedSize()
     }
 }
 
@@ -119,7 +117,7 @@ struct PantallaDeApertura: View {
             Paleta.fondo.ignoresSafeArea()
 
             VStack(spacing: grande ? 34 : 26) {
-                Logo(tamano: grande ? 168 : 116)
+                Logo(cuerpo: grande ? 124 : 88)
 
                 if mostrarSaludo {
                     VStack(spacing: grande ? 14 : 12) {

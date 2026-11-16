@@ -48,7 +48,8 @@ struct PantallaHoy: View {
 
     private var encabezado: some View {
         HStack(spacing: 14) {
-            Logo(tamano: 44)
+            Logo(cuerpo: 34)
+                .padding(.trailing, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Hoy")
                     .font(.system(size: 28, weight: .bold))

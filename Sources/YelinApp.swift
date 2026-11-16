@@ -53,14 +53,11 @@ struct AplicacionYelin: App {
 struct PantallaBalanza: View {
     @ObservedObject var balanza: LectorDeBalanza
     @ObservedObject var sincronizador: Sincronizador
-    @State private var estadoDelAviso = "Sin activar"
 
     var body: some View {
         NavigationView {
             List {
-                Section {
-                    enVivo
-                }
+                Section { enVivo }
 
                 Section {
                     NavigationLink {
@@ -83,92 +80,11 @@ struct PantallaBalanza: View {
                         }
                     }
                 }
-
-                Section("Google Drive") {
-                    Fila("Estado", sincronizador.estado)
-                    if sincronizador.conectado {
-                        Button {
-                            Task { await sincronizador.subirTodo() }
-                        } label: {
-                            Label("Subir todo ahora", systemImage: "arrow.up.doc")
-                        }
-                        Button(role: .destructive) {
-                            sincronizador.desconectar()
-                        } label: {
-                            Label("Desconectar Drive", systemImage: "xmark.circle")
-                        }
-                    } else {
-                        Button {
-                            sincronizador.conectar()
-                        } label: {
-                            Label("Conectar con Google Drive", systemImage: "link")
-                        }
-                    }
-                }
-
-                Section {
-                    Fila("Permiso", balanza.estadoDeSalud)
-                    Button {
-                        balanza.pedirPermisoDeSalud()
-                    } label: {
-                        Label("Dar permiso a Salud", systemImage: "heart.text.square")
-                    }
-                    if let ultima = balanza.ultimaGuardada {
-                        Button {
-                            balanza.mandarASalud(ultima)
-                        } label: {
-                            Label(String(format: "Probar con %.2f kg", ultima.kg),
-                                  systemImage: "arrow.up.heart")
-                        }
-                    }
-                } header: {
-                    Text("Salud de Apple")
-                } footer: {
-                    Text("No funciona con la cuenta gratuita de Apple: al instalar, AltStore firma la app sin el permiso de Salud. Los botones quedan por si en algún momento pasás a una cuenta paga.")
-                }
-
-                Section("Archivos") {
-                    ShareLink(item: balanza.almacen.urlPesadas) {
-                        Label("Compartir las pesadas", systemImage: "square.and.arrow.up")
-                    }
-                    ShareLink(item: balanza.almacen.urlTramas) {
-                        Label("Compartir las tramas crudas", systemImage: "square.and.arrow.up")
-                    }
-                    Button {
-                        balanza.buscarDeNuevo()
-                    } label: {
-                        Label("Buscar la balanza de nuevo", systemImage: "arrow.clockwise")
-                    }
-                }
-
-                Section("Esta sesión") {
-                    Fila("Tramas recibidas", "\(balanza.tramasDeLaSesion)")
-                    Fila("Tramas descartadas", "\(balanza.tramasDescartadas)")
-                    if !balanza.ultimaTrama.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Última trama").foregroundColor(.secondary)
-                            Text(balanza.ultimaTrama)
-                                .font(.system(.footnote, design: .monospaced))
-                        }
-                    }
-                }
-
-                Section("La app") {
-                    Fila("Versión", Info.version)
-                    Fila("Firma", Firma.resumen)
-                    Fila("Aviso de vencimiento", estadoDelAviso)
-                    Button {
-                        Firma.programar { estadoDelAviso = $0 }
-                    } label: {
-                        Label("Avisarme antes de que venza", systemImage: "bell")
-                    }
-                }
             }
             .scrollContentBackground(.hidden)
             .background(Paleta.fondo)
             .navigationTitle("Balanza")
             .toolbar { EditButton() }
-            .task { Firma.estadoDelAviso { estadoDelAviso = $0 } }
         }
         .navigationViewStyle(.stack)
     }
