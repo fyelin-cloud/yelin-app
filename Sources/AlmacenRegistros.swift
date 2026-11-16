@@ -143,7 +143,9 @@ extension Almacen {
 
     // MARK: Ayuda
 
-    private func leerLineas(_ archivo: URL) -> [[String]] {
+    /// Lee un CSV salteando el encabezado. La usan también los otros archivos
+    /// que viven en sus propios archivos de código, así que no es privada.
+    func leerLineas(_ archivo: URL) -> [[String]] {
         guard let texto = try? String(contentsOf: archivo, encoding: .utf8) else { return [] }
         return texto.split(separator: "\n").dropFirst().map { CSV.campos($0) }
     }
