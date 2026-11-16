@@ -85,7 +85,7 @@ struct PantallaHoy: View {
             .buttonStyle(.plain)
         } else {
             NavigationLink {
-                destino(s)
+                Empuje { destino(s) }
             } label: {
                 Ficha(titulo: s.titulo, simbolo: s.simbolo, detalle: detalle, activa: true)
             }
@@ -199,8 +199,10 @@ struct PantallaHoy: View {
 
     private var pie: some View {
         NavigationLink {
-            PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
-                            remo: remo, pesas: pesas, metas: metas)
+            Empuje {
+                PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
+                                remo: remo, pesas: pesas, metas: metas)
+            }
         } label: {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {

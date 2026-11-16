@@ -53,7 +53,6 @@ struct PantallaObjetivos: View {
                 }
             }
         }
-        .navigationTitle("Objetivos")
         .onAppear(perform: preparar)
         .onChange(of: peso) { _ in guardado = false }
         .onChange(of: metros) { _ in guardado = false }

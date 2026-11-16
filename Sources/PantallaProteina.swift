@@ -8,7 +8,7 @@ struct PantallaProteina: View {
     @State private var corrigiendo: Consumo?
 
     var body: some View {
-        Pantalla {
+        Pantalla(titulo: "Proteína") {
             Hero(numero: Kilos.texto(diario.scoopsDeHoy),
                  unidad: diario.scoopsDeHoy == 1 ? "scoop hoy" : "scoops hoy",
                  estado: diario.scoopsDeHoy == 0 ? "Todavía ninguno" : "Anotado",
@@ -78,7 +78,6 @@ struct PantallaProteina: View {
                 }
             }
         }
-        .navigationTitle("Proteína")
         .sheet(isPresented: $otraCantidad) {
             EditorDeScoops { cuantos in diario.anotarScoops(cuantos) }
         }

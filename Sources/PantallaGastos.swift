@@ -7,7 +7,7 @@ struct PantallaGastos: View {
     @State private var corrigiendo: Gasto?
 
     var body: some View {
-        Pantalla {
+        Pantalla(titulo: "Gastos") {
             Hero(numero: Plata.corto(diario.totalDelMes()),
                  unidad: "este mes",
                  estado: comparacion,
@@ -54,7 +54,6 @@ struct PantallaGastos: View {
                 }
             }
         }
-        .navigationTitle("Gastos")
         .sheet(isPresented: $anotando) {
             EditorDeGasto(categorias: diario.categorias) { monto, categoria, detalle in
                 diario.anotarGasto(monto: monto, categoria: categoria, detalle: detalle)
@@ -178,78 +177,68 @@ struct EditorDeGasto: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Pantalla(titulo: gasto == nil ? "Gasto nuevo" : "Corregir el gasto",
-                     bajada: gasto.map { "Del " + Fechas.conAnio($0.instante) }) {
-                Bloque(titulo: "Cuánto") {
-                    HStack(spacing: 8) {
-                        Text("$")
-                            .font(.system(size: 30, weight: .medium, design: .rounded))
-                            .foregroundColor(Paleta.suave)
-                        TextField("0", text: $monto)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 34, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundColor(Paleta.texto)
+        Hoja(titulo: gasto == nil ? "Gasto nuevo" : "Corregir el gasto",
+             bajada: gasto.map { "Del " + Fechas.conAnio($0.instante) },
+             confirmar: "Guardar",
+             puedeConfirmar: puedeGuardar,
+             alConfirmar: {
+                 if let valor = montoValido { guardar(valor, categoria, detalle) }
+             }) {
+            Bloque(titulo: "Cuánto") {
+                HStack(spacing: 8) {
+                    Text("$")
+                        .font(.system(size: 30, weight: .medium, design: .rounded))
+                        .foregroundColor(Paleta.suave)
+                    TextField("0", text: $monto)
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 34, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(Paleta.texto)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+
+            Bloque(titulo: "En qué") {
+                ForEach(enumerar(categorias)) { fila in
+                    if fila.puesto > 0 { Linea() }
+                    Button { categoria = fila.valor } label: {
+                        HStack {
+                            Text(fila.valor)
+                                .font(.system(size: 15))
+                                .foregroundColor(Paleta.texto)
+                            Spacer()
+                            if categoria == fila.valor {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(Paleta.acento)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 13)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Bloque(titulo: "Detalle", pie: "Opcional.") {
+                TextField("Nada en particular", text: $detalle)
+                    .font(.system(size: 15))
+                    .foregroundColor(Paleta.texto)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
-                }
-
-                Bloque(titulo: "En qué") {
-                    ForEach(enumerar(categorias)) { fila in
-                        if fila.puesto > 0 { Linea() }
-                        Button { categoria = fila.valor } label: {
-                            HStack {
-                                Text(fila.valor)
-                                    .font(.system(size: 15))
-                                    .foregroundColor(Paleta.texto)
-                                Spacer()
-                                if categoria == fila.valor {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(Paleta.acento)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 13)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                Bloque(titulo: "Detalle", pie: "Opcional.") {
-                    TextField("Nada en particular", text: $detalle)
-                        .font(.system(size: 15))
-                        .foregroundColor(Paleta.texto)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                }
-
-                Boton(texto: "Guardar") {
-                    if let valor = montoValido { guardar(valor, categoria, detalle) }
-                    cerrar()
-                }
-                .opacity(puedeGuardar ? 1 : 0.4)
-                .disabled(!puedeGuardar)
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { cerrar() }
-                }
-            }
-            .onAppear {
-                guard !cargado else { return }
-                cargado = true
-                if let gasto {
-                    monto = String(format: "%g", gasto.monto)
-                    categoria = gasto.categoria
-                    detalle = gasto.detalle
-                } else if categoria.isEmpty {
-                    categoria = categorias.first ?? "Otros"
-                }
+        }
+        .onAppear {
+            guard !cargado else { return }
+            cargado = true
+            if let gasto {
+                monto = String(format: "%g", gasto.monto)
+                categoria = gasto.categoria
+                detalle = gasto.detalle
+            } else if categoria.isEmpty {
+                categoria = categorias.first ?? "Otros"
             }
         }
     }

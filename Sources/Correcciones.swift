@@ -17,29 +17,18 @@ struct EditorDeScoops: View {
     @Environment(\.dismiss) private var cerrar
 
     var body: some View {
-        NavigationStack {
-            Pantalla(titulo: "Proteína", bajada: "Cuántos scoops") {
-                Bloque {
-                    Contador(valor: cantidad,
-                             texto: Kilos.texto(cantidad),
-                             paso: "½",
-                             menos: { cantidad = max(0.5, cantidad - 0.5) },
-                             mas: { cantidad = min(20, cantidad + 0.5) })
-                }
-                Boton(texto: "Guardar") {
-                    guardar(cantidad)
-                    cerrar()
-                }
+        Hoja(titulo: "Proteína", bajada: "Cuántos scoops",
+             confirmar: "Guardar", alConfirmar: { guardar(cantidad) }) {
+            Bloque {
+                Contador(valor: cantidad,
+                         texto: Kilos.texto(cantidad),
+                         paso: "½",
+                         menos: { cantidad = max(0.5, cantidad - 0.5) },
+                         mas: { cantidad = min(20, cantidad + 0.5) })
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { cerrar() }
-                }
-            }
-            .onAppear {
-                if !cargado { cantidad = cantidadInicial; cargado = true }
-            }
+        }
+        .onAppear {
+            if !cargado { cantidad = cantidadInicial; cargado = true }
         }
     }
 }
@@ -58,36 +47,26 @@ struct EditorDeSerie: View {
     @Environment(\.dismiss) private var cerrar
 
     var body: some View {
-        NavigationStack {
-            Pantalla(titulo: ejercicio,
-                     bajada: "Volumen: \(Kilos.grande(Double(repeticiones) * kilos)) kg") {
-                Bloque(titulo: "Repeticiones") {
-                    Contador(valor: Double(repeticiones), texto: "\(repeticiones)", paso: "1",
-                             menos: { repeticiones = max(1, repeticiones - 1) },
-                             mas: { repeticiones = min(300, repeticiones + 1) })
-                }
-                Bloque(titulo: "Kilos") {
-                    Contador(valor: kilos, texto: Kilos.texto(kilos), paso: "2,5",
-                             menos: { kilos = max(0, kilos - 2.5) },
-                             mas: { kilos = min(500, kilos + 2.5) })
-                }
-                Boton(texto: "Guardar") {
-                    guardar(repeticiones, kilos)
-                    cerrar()
-                }
+        Hoja(titulo: ejercicio,
+             bajada: "Volumen: \(Kilos.grande(Double(repeticiones) * kilos)) kg",
+             confirmar: "Guardar",
+             alConfirmar: { guardar(repeticiones, kilos) }) {
+            Bloque(titulo: "Repeticiones") {
+                Contador(valor: Double(repeticiones), texto: "\(repeticiones)", paso: "1",
+                         menos: { repeticiones = max(1, repeticiones - 1) },
+                         mas: { repeticiones = min(300, repeticiones + 1) })
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { cerrar() }
-                }
+            Bloque(titulo: "Kilos") {
+                Contador(valor: kilos, texto: Kilos.texto(kilos), paso: "2,5",
+                         menos: { kilos = max(0, kilos - 2.5) },
+                         mas: { kilos = min(500, kilos + 2.5) })
             }
-            .onAppear {
-                guard !cargado else { return }
-                repeticiones = repeticionesIniciales
-                kilos = kilosIniciales
-                cargado = true
-            }
+        }
+        .onAppear {
+            guard !cargado else { return }
+            repeticiones = repeticionesIniciales
+            kilos = kilosIniciales
+            cargado = true
         }
     }
 }
@@ -117,67 +96,54 @@ struct EditorDePesada: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Pantalla(titulo: pesada == nil ? "Pesada a mano" : "Corregir la pesada",
-                     bajada: pesada == nil
-                           ? "Para meter una de antes de tener la app" : nil) {
-                Bloque(titulo: "Cuántos kilos") {
-                    HStack(spacing: 10) {
-                        TextField("81,40", text: $kilos)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 36, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundColor(Paleta.texto)
-                        Text("kg")
-                            .font(.system(size: 18))
-                            .foregroundColor(Paleta.suave)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
+        Hoja(titulo: pesada == nil ? "Pesada a mano" : "Corregir la pesada",
+             bajada: pesada == nil ? "Para meter una de antes de tener la app" : nil,
+             confirmar: "Guardar",
+             puedeConfirmar: sirve,
+             alConfirmar: { if let valor { guardar(valor, cuando) } }) {
+            Bloque(titulo: "Cuántos kilos") {
+                HStack(spacing: 10) {
+                    TextField("81,40", text: $kilos)
+                        .keyboardType(.decimalPad)
+                        .font(.system(size: 36, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(Paleta.texto)
+                    Text("kg")
+                        .font(.system(size: 18))
+                        .foregroundColor(Paleta.suave)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
 
-                Bloque(titulo: "Cuándo") {
-                    Celda {
-                        DatePicker("", selection: $cuando,
-                                   in: ...Date(),
-                                   displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                            .tint(Paleta.acento)
-                            .environment(\.locale, Locale(identifier: "es_AR"))
-                    }
-                }
-
-                Boton(texto: "Guardar") {
-                    if let valor { guardar(valor, cuando) }
-                    cerrar()
-                }
-                .opacity(sirve ? 1 : 0.4)
-                .disabled(!sirve)
-
-                Bloque {
-                    Celda {
-                        Text("Las pesadas cargadas a mano entran al historial y a la "
-                             + "tendencia igual que las que manda la balanza.")
-                            .font(.system(size: 13))
-                            .foregroundColor(Paleta.suave)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+            Bloque(titulo: "Cuándo") {
+                Celda {
+                    DatePicker("", selection: $cuando,
+                               in: ...Date(),
+                               displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden()
+                        .tint(Paleta.acento)
+                        .environment(\.locale, Locale(identifier: "es_AR"))
                 }
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { cerrar() }
+
+            Bloque {
+                Celda {
+                    Text("Las pesadas cargadas a mano entran al historial y a la "
+                         + "tendencia igual que las que manda la balanza.")
+                        .font(.system(size: 13))
+                        .foregroundColor(Paleta.suave)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .onAppear {
-                guard !cargado else { return }
-                if let pesada {
-                    kilos = String(format: "%.2f", pesada.kg).replacingOccurrences(of: ".", with: ",")
-                    cuando = pesada.instante
-                }
-                cargado = true
+        }
+        .onAppear {
+            guard !cargado else { return }
+            if let pesada {
+                kilos = String(format: "%.2f", pesada.kg).replacingOccurrences(of: ".", with: ",")
+                cuando = pesada.instante
             }
+            cargado = true
         }
     }
 }

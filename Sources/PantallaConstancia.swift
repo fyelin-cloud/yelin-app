@@ -51,7 +51,6 @@ struct PantallaConstancia: View {
                 }
             }
         }
-        .navigationTitle("Constancia")
     }
 
     private func frase(_ c: Constancia) -> String {

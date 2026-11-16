@@ -76,7 +76,6 @@ struct PantallaRecordatorios: View {
                 }
             }
         }
-        .navigationTitle("Recordatorios")
         .sheet(isPresented: $creando) {
             EditorDeRecordatorio(recordatorio: Recordatorio.nuevo()) { nuevo in
                 avisos.agregar(nuevo)
@@ -164,9 +163,11 @@ struct EditorDeRecordatorio: View {
     @Environment(\.dismiss) private var cerrar
 
     var body: some View {
-        NavigationStack {
-            Pantalla(titulo: "Recordatorio", bajada: resumen) {
-                Bloque(titulo: "De qué") {
+        Hoja(titulo: "Recordatorio", bajada: resumen,
+             confirmar: "Guardar",
+             puedeConfirmar: !recordatorio.dias.isEmpty,
+             alConfirmar: { guardar(recordatorio) }) {
+            Bloque(titulo: "De qué") {
                     ForEach(enumerar(Recordatorio.Tipo.allCases)) { fila in
                         if fila.puesto > 0 { Linea() }
                         Button { recordatorio.tipo = fila.valor } label: {
@@ -234,19 +235,6 @@ struct EditorDeRecordatorio: View {
                         .padding(.vertical, 14)
                 }
 
-                Boton(texto: "Guardar") {
-                    guardar(recordatorio)
-                    cerrar()
-                }
-                .opacity(recordatorio.dias.isEmpty ? 0.4 : 1)
-                .disabled(recordatorio.dias.isEmpty)
-            }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { cerrar() }
-                }
-            }
         }
     }
 

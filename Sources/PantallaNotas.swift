@@ -43,6 +43,7 @@ struct PantallaNotas: View {
     @State private var busqueda = ""
     @State private var escribiendo = false
     @State private var enEdicion: Nota?
+    @State private var moviendo: Nota?
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
 
@@ -56,7 +57,11 @@ struct PantallaNotas: View {
     }
 
     var body: some View {
-        Pantalla {
+        Pantalla(titulo: "Notas",
+                 simbolo: "square.and.pencil",
+                 accion: { escribiendo = true }) {
+            Buscador(texto: $busqueda, invitacion: "Buscar en todas las notas")
+
             if buscando {
                 resultados
             } else {
@@ -67,15 +72,6 @@ struct PantallaNotas: View {
                            detalle: "\(diario.carpetas.count)") {
                         PantallaCarpetas(diario: diario)
                     }
-                }
-            }
-        }
-        .searchable(text: $busqueda, prompt: "Buscar en todas las notas")
-        .navigationTitle("Notas")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { escribiendo = true } label: {
-                    Image(systemName: "square.and.pencil")
                 }
             }
         }
@@ -91,6 +87,12 @@ struct PantallaNotas: View {
                 diario.reemplazar(nota, texto: texto, importante: importante, carpeta: carpeta)
             }
         }
+        .sheet(item: $moviendo) { nota in
+            Eleccion(titulo: "Mover la nota", opciones: diario.carpetas,
+                     ninguna: "Sin carpeta", elegida: nota.carpeta) { donde in
+                diario.mover(nota, a: donde)
+            }
+        }
     }
 
     // MARK: Las carpetas
@@ -99,7 +101,7 @@ struct PantallaNotas: View {
         LazyVGrid(columns: columnas, spacing: 12) {
             ForEach(diario.carpetas, id: \.self) { nombre in
                 NavigationLink {
-                    PantallaCarpeta(diario: diario, vista: .carpeta(nombre))
+                    Empuje { PantallaCarpeta(diario: diario, vista: .carpeta(nombre)) }
                 } label: {
                     Carpeta(nombre: nombre, cuantas: diario.cuantasEn(nombre),
                             simbolo: "folder", acento: true)
@@ -109,7 +111,7 @@ struct PantallaNotas: View {
 
             if diario.sinCarpeta > 0 {
                 NavigationLink {
-                    PantallaCarpeta(diario: diario, vista: .sinCarpeta)
+                    Empuje { PantallaCarpeta(diario: diario, vista: .sinCarpeta) }
                 } label: {
                     Carpeta(nombre: "Sin carpeta", cuantas: diario.sinCarpeta,
                             simbolo: "tray", acento: false)
@@ -120,7 +122,7 @@ struct PantallaNotas: View {
             let marcadas = diario.notas.filter(\.importante).count
             if marcadas > 0 {
                 NavigationLink {
-                    PantallaCarpeta(diario: diario, vista: .importantes)
+                    Empuje { PantallaCarpeta(diario: diario, vista: .importantes) }
                 } label: {
                     Carpeta(nombre: "Importantes", cuantas: marcadas,
                             simbolo: "star.fill", acento: true)
@@ -143,7 +145,9 @@ struct PantallaNotas: View {
                 ForEach(enumerar(Array(diario.notas.prefix(6)))) { fila in
                     if fila.puesto > 0 { Linea() }
                     RenglonDeNota(nota: fila.valor, diario: diario,
-                                  mostrarCarpeta: true) { enEdicion = fila.valor }
+                                  mostrarCarpeta: true,
+                                  abrir: { enEdicion = fila.valor },
+                                  mover: { moviendo = fila.valor })
                 }
             }
         }
@@ -161,7 +165,9 @@ struct PantallaNotas: View {
                 ForEach(enumerar(encontradas)) { fila in
                     if fila.puesto > 0 { Linea() }
                     RenglonDeNota(nota: fila.valor, diario: diario,
-                                  mostrarCarpeta: true) { enEdicion = fila.valor }
+                                  mostrarCarpeta: true,
+                                  abrir: { enEdicion = fila.valor },
+                                  mover: { moviendo = fila.valor })
                 }
             }
         }
@@ -210,6 +216,7 @@ struct PantallaCarpeta: View {
 
     @State private var escribiendo = false
     @State private var enEdicion: Nota?
+    @State private var moviendo: Nota?
 
     private var lista: [Nota] {
         switch vista {
@@ -221,7 +228,9 @@ struct PantallaCarpeta: View {
     }
 
     var body: some View {
-        Pantalla(titulo: vista.titulo, bajada: bajada) {
+        Pantalla(titulo: vista.titulo, bajada: bajada,
+                 simbolo: "square.and.pencil",
+                 accion: { escribiendo = true }) {
             Bloque(pie: lista.isEmpty ? nil
                       : "Tocá una nota para editarla. Mantené apretada para "
                       + "moverla de carpeta o borrarla.") {
@@ -231,19 +240,17 @@ struct PantallaCarpeta: View {
                     ForEach(enumerar(lista)) { fila in
                         if fila.puesto > 0 { Linea() }
                         RenglonDeNota(nota: fila.valor, diario: diario,
-                                      mostrarCarpeta: mostrarCarpeta) {
-                            enEdicion = fila.valor
-                        }
+                                      mostrarCarpeta: mostrarCarpeta,
+                                      abrir: { enEdicion = fila.valor },
+                                      mover: { moviendo = fila.valor })
                     }
                 }
             }
         }
-        .navigationTitle(vista.titulo)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { escribiendo = true } label: {
-                    Image(systemName: "square.and.pencil")
-                }
+        .sheet(item: $moviendo) { nota in
+            Eleccion(titulo: "Mover la nota", opciones: diario.carpetas,
+                     ninguna: "Sin carpeta", elegida: nota.carpeta) { donde in
+                diario.mover(nota, a: donde)
             }
         }
         .sheet(isPresented: $escribiendo) {
@@ -287,6 +294,7 @@ private struct RenglonDeNota: View {
     @ObservedObject var diario: Diario
     var mostrarCarpeta: Bool
     let abrir: () -> Void
+    let mover: () -> Void
 
     var body: some View {
         Button(action: abrir) {
@@ -332,26 +340,8 @@ private struct RenglonDeNota: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            Menu {
-                ForEach(diario.carpetas, id: \.self) { nombre in
-                    Button {
-                        diario.mover(nota, a: nombre)
-                    } label: {
-                        if nota.carpeta == nombre {
-                            Label(nombre, systemImage: "checkmark")
-                        } else {
-                            Text(nombre)
-                        }
-                    }
-                }
-                if !nota.carpeta.isEmpty {
-                    Divider()
-                    Button { diario.mover(nota, a: "") } label: {
-                        Label("Sacar de la carpeta", systemImage: "tray")
-                    }
-                }
-            } label: {
-                Label("Mover a", systemImage: "folder")
+            Button(action: mover) {
+                Label("Mover a otra carpeta", systemImage: "folder")
             }
             Button(role: .destructive) {
                 diario.borrar(nota)
@@ -438,18 +428,26 @@ struct PantallaCarpetas: View {
                 }
             }
         }
-        .navigationTitle("Carpetas")
-        .alert("Renombrar la carpeta", isPresented: Binding(
-            get: { renombrando != nil },
-            set: { if !$0 { renombrando = nil } })) {
-            TextField("Nombre", text: $nombreNuevo)
-            Button("Cancelar", role: .cancel) { renombrando = nil }
-            Button("Guardar") {
-                if let vieja = renombrando { diario.renombrarCarpeta(vieja, a: nombreNuevo) }
-                renombrando = nil
+        .sheet(isPresented: Binding(get: { renombrando != nil },
+                                    set: { if !$0 { renombrando = nil } })) {
+            Hoja(titulo: "Renombrar",
+                 bajada: "Las notas que estén adentro se mueven con ella",
+                 confirmar: "Guardar",
+                 puedeConfirmar: !nombreNuevo.trimmingCharacters(in: .whitespaces).isEmpty,
+                 alConfirmar: {
+                     if let vieja = renombrando {
+                         diario.renombrarCarpeta(vieja, a: nombreNuevo)
+                     }
+                     renombrando = nil
+                 }) {
+                Bloque(titulo: "Nombre nuevo") {
+                    TextField("Nombre", text: $nombreNuevo)
+                        .font(.system(size: 18))
+                        .foregroundColor(Paleta.texto)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 15)
+                }
             }
-        } message: {
-            Text("Las notas que estén adentro se mueven con ella.")
         }
     }
 
@@ -469,70 +467,77 @@ struct EditorDeNota: View {
     let carpetas: [String]
     let guardar: (String, Bool, String) -> Void
 
+    @State private var eligiendoCarpeta = false
     @Environment(\.dismiss) private var cerrar
 
+    private var sirve: Bool {
+        !texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Paleta.fondo.ignoresSafeArea()
-                VStack(spacing: 0) {
-                    TextEditor(text: $texto)
-                        .font(.system(size: 16))
-                        .scrollContentBackground(.hidden)
-                        .background(Paleta.fondo)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 8)
+        ZStack {
+            Paleta.fondo.ignoresSafeArea()
+            VStack(spacing: 0) {
+                barra
 
-                    Rectangle().fill(Paleta.borde).frame(height: 1)
+                TextEditor(text: $texto)
+                    .font(.system(size: 16))
+                    .scrollContentBackground(.hidden)
+                    .background(Paleta.fondo)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 8)
 
-                    HStack {
-                        Text("Carpeta")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(Paleta.texto)
-                        Spacer()
-                        Menu {
-                            Button("Sin carpeta") { carpeta = "" }
-                            ForEach(carpetas, id: \.self) { nombre in
-                                Button(nombre) { carpeta = nombre }
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text(carpeta.isEmpty ? "Sin carpeta" : carpeta)
-                                    .font(.system(size: 15))
-                                    .foregroundColor(carpeta.isEmpty ? Paleta.suave : Paleta.acento)
-                                Image(systemName: "chevron.up.chevron.down")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundColor(Paleta.suave)
-                            }
-                        }
-                    }
+                Rectangle().fill(Paleta.borde).frame(height: 1)
+
+                Elegido(rotulo: "Carpeta",
+                        valor: carpeta.isEmpty ? "Sin carpeta" : carpeta,
+                        vacio: carpeta.isEmpty) { eligiendoCarpeta = true }
+                    .padding(.horizontal, 2)
+
+                Rectangle().fill(Paleta.borde).frame(height: 1)
+
+                Toggle("Importante", isOn: $importante)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(Paleta.texto)
+                    .tint(Paleta.acento)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 13)
-
-                    Rectangle().fill(Paleta.borde).frame(height: 1)
-
-                    Toggle("Importante", isOn: $importante)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Paleta.texto)
-                        .tint(Paleta.acento)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 13)
-                }
             }
-            .navigationTitle(titulo)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { cerrar() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Guardar") {
-                        guardar(texto, importante, carpeta)
-                        cerrar()
-                    }
-                    .disabled(texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+        }
+        .sheet(isPresented: $eligiendoCarpeta) {
+            Eleccion(titulo: "Carpeta", opciones: carpetas,
+                     ninguna: "Sin carpeta", elegida: carpeta) { carpeta = $0 }
+        }
+    }
+
+    /// La misma barra que usa `Hoja`, puesta a mano porque acá el contenido
+    /// no va adentro de un `ScrollView`: el editor de texto ocupa todo.
+    private var barra: some View {
+        HStack(spacing: 12) {
+            BotonRedondo(simbolo: "xmark") { cerrar() }
+            Text(titulo)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(Paleta.texto)
+            Spacer(minLength: 0)
+            Button {
+                guardar(texto, importante, carpeta)
+                cerrar()
+            } label: {
+                Text("Guardar")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 11)
+                    .background(Capsule().fill(Paleta.acento))
             }
+            .buttonStyle(.plain)
+            .opacity(sirve ? 1 : 0.4)
+            .disabled(!sirve)
+        }
+        .padding(.horizontal, Medida.margen)
+        .padding(.vertical, 14)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Paleta.borde).frame(height: 1)
         }
     }
 }

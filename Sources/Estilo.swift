@@ -19,43 +19,123 @@ enum Medida {
     static let margen: CGFloat = 18
 }
 
+// MARK: - Qué tan adentro estamos
+
+private struct ProfundidadKey: EnvironmentKey { static let defaultValue = 0 }
+
+extension EnvironmentValues {
+    /// Cuántas pantallas hay apiladas debajo de esta. Sirve para que una
+    /// pantalla sepa si tiene que dibujar su flecha de volver.
+    ///
+    /// Hace falta porque la barra de navegación de iOS está escondida en toda
+    /// la app, así que el botón de volver lo dibujamos nosotros y no hay nadie
+    /// que nos diga si hay algo atrás.
+    var profundidad: Int {
+        get { self[ProfundidadKey.self] }
+        set { self[ProfundidadKey.self] = newValue }
+    }
+}
+
+/// Envuelve el destino de un enlace para que sepa que quedó apilado.
+///
+/// Todo lo que se abre con `NavigationLink` tiene que ir adentro de esto, o
+/// la pantalla nueva no va a mostrar la flecha de volver.
+struct Empuje<Contenido: View>: View {
+    @Environment(\.profundidad) private var profundidad
+    @ViewBuilder var contenido: () -> Contenido
+
+    var body: some View {
+        contenido().environment(\.profundidad, profundidad + 1)
+    }
+}
+
 // MARK: - El marco de la pantalla
 
-/// El fondo, el título grande y el contenido centrado con tope de ancho.
+/// El fondo, el encabezado propio y el contenido centrado con tope de ancho.
+///
+/// **La barra de navegación de iOS está escondida en toda la app.** El título,
+/// la flecha de volver y el botón de la derecha los dibuja esta vista, con la
+/// tipografía y los colores de la marca, para que el marco no se vea prestado
+/// del sistema.
 struct Pantalla<Contenido: View>: View {
     var titulo: String? = nil
     var bajada: String? = nil
     var espacio: CGFloat = 18
+    /// El botón redondo de la derecha, si la pantalla tiene uno.
+    var simbolo: String? = nil
+    var accion: (() -> Void)? = nil
     @ViewBuilder var contenido: () -> Contenido
+
+    @Environment(\.profundidad) private var profundidad
+    @Environment(\.dismiss) private var volver
+
+    private var hayEncabezado: Bool {
+        titulo != nil || profundidad > 0 || accion != nil
+    }
 
     var body: some View {
         ZStack {
             Paleta.fondo.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: espacio) {
-                    if let titulo {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(titulo)
-                                .font(.system(size: 30, weight: .bold))
-                                .foregroundColor(Paleta.texto)
-                            if let bajada {
-                                Text(bajada)
-                                    .font(.system(size: 13))
-                                    .foregroundColor(Paleta.suave)
-                            }
-                        }
-                        .padding(.bottom, 2)
-                    }
+                    if hayEncabezado { encabezado }
                     contenido()
                 }
                 .padding(.horizontal, Medida.margen)
-                .padding(.top, 10)
+                .padding(.top, 12)
                 .padding(.bottom, 34)
                 .frame(maxWidth: Medida.ancho)
                 .frame(maxWidth: .infinity)
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var encabezado: some View {
+        HStack(alignment: .center, spacing: 13) {
+            if profundidad > 0 {
+                BotonRedondo(simbolo: "chevron.left") { volver() }
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                if let titulo {
+                    Text(titulo)
+                        .font(.system(size: 29, weight: .bold))
+                        .foregroundColor(Paleta.texto)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                if let bajada {
+                    Text(bajada)
+                        .font(.system(size: 13))
+                        .foregroundColor(Paleta.suave)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
+            if let simbolo, let accion {
+                BotonRedondo(simbolo: simbolo, accion: accion)
+            }
+        }
+        .padding(.bottom, 2)
+    }
+}
+
+/// El botón circular del encabezado: volver, agregar, reconectar.
+struct BotonRedondo: View {
+    let simbolo: String
+    var destacado = false
+    let accion: () -> Void
+
+    var body: some View {
+        Button(action: accion) {
+            Image(systemName: simbolo)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(destacado ? .white : Paleta.texto)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(destacado ? Paleta.acento : Paleta.superficie))
+                .overlay(Circle().stroke(destacado ? Color.clear : Paleta.borde, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -188,7 +268,7 @@ struct Navega<Destino: View>: View {
 
     var body: some View {
         NavigationLink {
-            destino()
+            Empuje { destino() }
         } label: {
             HStack(spacing: 11) {
                 if let simbolo {
@@ -421,5 +501,207 @@ struct Progreso: View {
     /// miles para que 6000 se lea 6.000.
     private func numero(_ v: Double) -> String {
         v == v.rounded() ? Kilos.grande(v) : String(format: "%.1f", v)
+    }
+}
+
+// MARK: - Buscar
+
+/// El casillero de búsqueda, en lugar del `searchable` del sistema.
+///
+/// El del sistema aparece y desaparece solo arriba de todo, con su fondo gris
+/// y su lupa, y es de las cosas que más gritan "iOS". Este vive adentro de la
+/// pantalla, como un bloque más.
+struct Buscador: View {
+    @Binding var texto: String
+    var invitacion = "Buscar"
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(Paleta.suave)
+            TextField(invitacion, text: $texto)
+                .font(.system(size: 16))
+                .foregroundColor(Paleta.texto)
+                .autocorrectionDisabled()
+            if !texto.isEmpty {
+                Button { texto = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Paleta.suave)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(Paleta.superficie))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(Paleta.borde, lineWidth: 1))
+    }
+}
+
+// MARK: - Ventanas propias
+
+/// El marco de todo lo que se abre encima: anotar una serie, corregir un
+/// gasto, escribir una nota.
+///
+/// Reemplaza al `NavigationStack` con botones de "Cancelar" y "Guardar" en la
+/// barra azul del sistema. Acá la cruz y el botón de confirmar son nuestros.
+struct Hoja<Contenido: View>: View {
+    let titulo: String
+    var bajada: String? = nil
+    var confirmar: String? = nil
+    var puedeConfirmar = true
+    var alConfirmar: (() -> Void)? = nil
+    @ViewBuilder var contenido: () -> Contenido
+
+    @Environment(\.dismiss) private var cerrar
+
+    var body: some View {
+        ZStack {
+            Paleta.fondo.ignoresSafeArea()
+            VStack(spacing: 0) {
+                barra
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        contenido()
+                    }
+                    .padding(.horizontal, Medida.margen)
+                    .padding(.top, 4)
+                    .padding(.bottom, 34)
+                    .frame(maxWidth: Medida.ancho)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    private var barra: some View {
+        HStack(alignment: .center, spacing: 12) {
+            BotonRedondo(simbolo: "xmark") { cerrar() }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titulo)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Paleta.texto)
+                    .lineLimit(1)
+                if let bajada {
+                    Text(bajada)
+                        .font(.system(size: 12))
+                        .foregroundColor(Paleta.suave)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            if let confirmar, let alConfirmar {
+                Button {
+                    alConfirmar()
+                    cerrar()
+                } label: {
+                    Text(confirmar)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 11)
+                        .background(Capsule().fill(Paleta.acento))
+                }
+                .buttonStyle(.plain)
+                .opacity(puedeConfirmar ? 1 : 0.4)
+                .disabled(!puedeConfirmar)
+            }
+        }
+        .padding(.horizontal, Medida.margen)
+        .padding(.top, 14)
+        .padding(.bottom, 14)
+        .frame(maxWidth: Medida.ancho)
+        .frame(maxWidth: .infinity)
+        .background(Paleta.fondo)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Paleta.borde).frame(height: 1)
+        }
+    }
+}
+
+// MARK: - Elegir de una lista
+
+/// La fila que muestra qué está elegido y abre la lista al tocarla.
+///
+/// Reemplaza al `Menu` de iOS, que despliega el globito gris del sistema.
+struct Elegido: View {
+    let rotulo: String
+    let valor: String
+    var vacio = false
+    let tocar: () -> Void
+
+    var body: some View {
+        Button(action: tocar) {
+            HStack {
+                Text(rotulo)
+                    .font(.system(size: 15))
+                    .foregroundColor(Paleta.suave)
+                Spacer(minLength: 10)
+                Text(valor)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(vacio ? Paleta.suave : Paleta.acento)
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Paleta.suave)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// La lista para elegir una opción, en una ventana propia.
+struct Eleccion: View {
+    let titulo: String
+    let opciones: [String]
+    /// Si viene, se agrega arriba de todo como opción vacía ("Sin carpeta").
+    var ninguna: String? = nil
+    let elegida: String
+    let elegir: (String) -> Void
+
+    @Environment(\.dismiss) private var cerrar
+
+    var body: some View {
+        Hoja(titulo: titulo) {
+            Bloque {
+                if let ninguna {
+                    opcion(texto: ninguna, valor: "", primera: true)
+                }
+                ForEach(enumerar(opciones)) { fila in
+                    if fila.puesto > 0 || ninguna != nil { Linea() }
+                    opcion(texto: fila.valor, valor: fila.valor, primera: false)
+                }
+            }
+        }
+    }
+
+    private func opcion(texto: String, valor: String, primera: Bool) -> some View {
+        Button {
+            elegir(valor)
+            cerrar()
+        } label: {
+            HStack {
+                Text(texto)
+                    .font(.system(size: 16))
+                    .foregroundColor(valor.isEmpty ? Paleta.suave : Paleta.texto)
+                Spacer()
+                if elegida == valor {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Paleta.acento)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 15)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

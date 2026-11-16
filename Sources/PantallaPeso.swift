@@ -54,7 +54,6 @@ struct PantallaPeso: View {
                 }
             }
         }
-        .navigationTitle("Peso")
     }
 
     private var numeros: [(String, String)] {

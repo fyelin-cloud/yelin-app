@@ -13,7 +13,7 @@ struct PantallaPesas: View {
     @State private var corrigiendo: Serie?
 
     var body: some View {
-        Pantalla {
+        Pantalla(titulo: "Pesas") {
             Hero(numero: Kilos.grande(pesas.volumenDeHoy),
                  unidad: "kg de volumen hoy",
                  estado: estado,
@@ -47,7 +47,6 @@ struct PantallaPesas: View {
                 }
             }
         }
-        .navigationTitle("Pesas")
         .sheet(isPresented: $anotando) {
             NuevaSerie(pesas: pesas, ejercicio: ejercicioElegido)
         }
@@ -188,73 +187,51 @@ struct NuevaSerie: View {
     @State private var repeticiones = 10
     @State private var kilos: Double = 20
     @State private var cargado = false
-
-    @Environment(\.dismiss) private var cerrar
+    @State private var eligiendo = false
 
     var body: some View {
-        NavigationStack {
-            Pantalla(titulo: "Serie nueva", bajada: bajada) {
-                Bloque(titulo: "Ejercicio") {
-                    Menu {
-                        ForEach(pesas.lista, id: \.self) { nombre in
-                            Button(nombre) { elegir(nombre) }
-                        }
-                    } label: {
-                        HStack {
-                            Text(elegido.isEmpty ? "Elegir" : elegido)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(elegido.isEmpty ? Paleta.suave : Paleta.texto)
-                            Spacer()
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(Paleta.suave)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 15)
-                        .contentShape(Rectangle())
+        Hoja(titulo: "Serie nueva", bajada: bajada,
+             confirmar: "Guardar",
+             puedeConfirmar: !elegido.isEmpty,
+             alConfirmar: {
+                 pesas.anotar(ejercicio: elegido, repeticiones: repeticiones, kilos: kilos)
+             }) {
+            Bloque {
+                Elegido(rotulo: "Ejercicio",
+                        valor: elegido.isEmpty ? "Elegir" : elegido,
+                        vacio: elegido.isEmpty) { eligiendo = true }
+            }
+
+            Bloque(titulo: "Repeticiones") {
+                Contador(valor: Double(repeticiones),
+                         texto: "\(repeticiones)",
+                         paso: "1",
+                         menos: { repeticiones = max(1, repeticiones - 1) },
+                         mas: { repeticiones = min(300, repeticiones + 1) })
+            }
+
+            Bloque(titulo: "Kilos", pie: "Si es con el peso del cuerpo, dejalo en 0.") {
+                Contador(valor: kilos,
+                         texto: Kilos.texto(kilos),
+                         paso: "2,5",
+                         menos: { kilos = max(0, kilos - 2.5) },
+                         mas: { kilos = min(500, kilos + 2.5) })
+            }
+
+            if let antes = anterior {
+                Bloque(titulo: "Con cuánto venías") {
+                    Celda {
+                        Text(antes)
+                            .font(.system(size: 14))
+                            .foregroundColor(Paleta.suave)
                     }
                 }
-
-                Bloque(titulo: "Repeticiones") {
-                    Contador(valor: Double(repeticiones),
-                             texto: "\(repeticiones)",
-                             paso: "1",
-                             menos: { repeticiones = max(1, repeticiones - 1) },
-                             mas: { repeticiones = min(300, repeticiones + 1) })
-                }
-
-                Bloque(titulo: "Kilos", pie: "Si es con el peso del cuerpo, dejalo en 0.") {
-                    Contador(valor: kilos,
-                             texto: Kilos.texto(kilos),
-                             paso: "2,5",
-                             menos: { kilos = max(0, kilos - 2.5) },
-                             mas: { kilos = min(500, kilos + 2.5) })
-                }
-
-                if let antes = anterior {
-                    Bloque(titulo: "Con cuánto venías") {
-                        Celda {
-                            Text(antes)
-                                .font(.system(size: 14))
-                                .foregroundColor(Paleta.suave)
-                        }
-                    }
-                }
-
-                Boton(texto: "Guardar") {
-                    pesas.anotar(ejercicio: elegido, repeticiones: repeticiones, kilos: kilos)
-                    cerrar()
-                }
-                .opacity(elegido.isEmpty ? 0.4 : 1)
-                .disabled(elegido.isEmpty)
             }
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancelar") { cerrar() }
-                }
-            }
-            .onAppear(perform: preparar)
+        }
+        .onAppear(perform: preparar)
+        .sheet(isPresented: $eligiendo) {
+            Eleccion(titulo: "Ejercicio", opciones: pesas.lista,
+                     elegida: elegido) { elegir($0) }
         }
     }
 
@@ -336,7 +313,7 @@ struct HistorialDePesas: View {
     @ObservedObject var pesas: Pesas
 
     var body: some View {
-        Pantalla {
+        Pantalla(titulo: "Historial") {
             let dias = pesas.dias()
             if dias.isEmpty {
                 Bloque { Vacio("Todavía no anotaste ninguna serie.") }
@@ -361,7 +338,6 @@ struct HistorialDePesas: View {
                 }
             }
         }
-        .navigationTitle("Historial")
     }
 
     private func mejorDia(_ dias: [DiaDePesas]) -> String {
@@ -414,7 +390,8 @@ struct RecordsDePesas: View {
     @ObservedObject var pesas: Pesas
 
     var body: some View {
-        Pantalla(bajada: "El kilaje más alto que levantaste en cada ejercicio.") {
+        Pantalla(titulo: "Récords",
+                 bajada: "El kilaje más alto que levantaste en cada ejercicio.") {
             let conHistorial = pesas.ejerciciosConHistorial()
             if conHistorial.isEmpty {
                 Bloque { Vacio("Todavía no hay nada anotado.") }
@@ -445,7 +422,6 @@ struct RecordsDePesas: View {
                 }
             }
         }
-        .navigationTitle("Récords")
     }
 }
 
@@ -456,7 +432,8 @@ struct MisEjercicios: View {
     @State private var nuevo = ""
 
     var body: some View {
-        Pantalla(bajada: "Los que aparecen al anotar una serie.") {
+        Pantalla(titulo: "Mis ejercicios",
+                 bajada: "Los que aparecen al anotar una serie.") {
             Bloque(titulo: "Agregar") {
                 HStack(spacing: 10) {
                     TextField("Nombre del ejercicio", text: $nuevo)
@@ -514,7 +491,6 @@ struct MisEjercicios: View {
                 }
             }
         }
-        .navigationTitle("Mis ejercicios")
     }
 
     private func agregar() {

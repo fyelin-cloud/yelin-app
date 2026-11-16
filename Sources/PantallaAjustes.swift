@@ -106,7 +106,6 @@ struct PantallaAjustes: View {
                 }
             }
         }
-        .navigationTitle("Ajustes")
         .task { Firma.estadoDelAviso { estadoDelAviso = $0 } }
     }
 }
@@ -168,7 +167,6 @@ struct PantallaArchivos: View {
                 Compartir("Recordatorios", almacen.urlRecordatorios)
             }
         }
-        .navigationTitle("Archivos")
     }
 }
 
@@ -239,7 +237,6 @@ struct PantallaTramas: View {
                 }
             }
         }
-        .navigationTitle("Tramas crudas")
     }
 }
 

@@ -100,7 +100,6 @@ struct PantallaSemana: View {
                 ])
             }
         }
-        .navigationTitle("La semana")
     }
 
     /// Las barras de avance, solo de los objetivos que estén cargados.

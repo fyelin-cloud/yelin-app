@@ -111,30 +111,41 @@ struct Raiz: View {
 
     // MARK: Tablet
 
+    /// Dos columnas puestas a mano, sin `NavigationSplitView`.
+    ///
+    /// El split view del sistema trae su botón de plegar, su material
+    /// translúcido y su propio ancho; nada de eso se puede cambiar. Dos cosas
+    /// al lado de la otra se arman en una línea y quedan como queremos.
     private var conColumna: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             Lateral(seleccion: $seccion)
-        } detail: {
-            NavigationStack {
-                vista(seccion)
-            }
-            .id(seccion)
+                .frame(width: 252)
+            Rectangle()
+                .fill(Paleta.borde)
+                .frame(width: 1)
+                .ignoresSafeArea(edges: .vertical)
+            NavigationStack { vista(seccion) }
+                .id(seccion)
         }
-        .navigationSplitViewStyle(.balanced)
+        .background(Paleta.fondo.ignoresSafeArea())
         .tint(Paleta.acento)
     }
 
     // MARK: Teléfono
 
+    /// Una sola pila de navegación con nuestra barra abajo, en lugar del
+    /// `TabView` del sistema.
+    ///
+    /// El `TabView` dibuja la barra translúcida de iOS con sus íconos
+    /// chiquitos y sus rótulos de diez puntos, y no se puede repintar.
     private var conBarra: some View {
-        TabView(selection: $seccion) {
-            ForEach(Seccion.enLaBarra) { s in
-                NavigationStack { vista(s) }
-                    .tabItem { Label(s.titulo, systemImage: s.simbolo) }
-                    .tag(s)
+        NavigationStack { vista(seccion) }
+            .id(seccion)
+            .background(Paleta.fondo.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                BarraDeAbajo(seleccion: $seccion)
             }
-        }
-        .tint(Paleta.acento)
+            .tint(Paleta.acento)
     }
 
     // MARK: Qué pantalla es cada sección
@@ -183,6 +194,52 @@ extension Seccion {
     ]
 }
 
+// MARK: - La barra de abajo del teléfono
+
+/// Las cinco secciones principales. Dibujada a mano: fondo sólido de la
+/// marca, borde fino arriba y una pastilla azul atrás de la elegida.
+struct BarraDeAbajo: View {
+    @Binding var seleccion: Seccion
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Seccion.enLaBarra) { s in
+                Button {
+                    seleccion = s
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: s.simbolo)
+                            .font(.system(size: 17,
+                                          weight: seleccion == s ? .semibold : .regular))
+                        Text(s.titulo)
+                            .font(.system(size: 10.5,
+                                          weight: seleccion == s ? .semibold : .regular))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .foregroundColor(seleccion == s ? Paleta.acento : Paleta.suave)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(seleccion == s ? Paleta.acento.opacity(0.14) : Color.clear)
+                            .padding(.horizontal, 6)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+        .background(Paleta.superficie)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Paleta.borde).frame(height: 1)
+        }
+    }
+}
+
 // MARK: - La columna del iPad
 
 struct Lateral: View {
@@ -217,8 +274,6 @@ struct Lateral: View {
                 .padding(.bottom, 24)
             }
         }
-        .navigationTitle("Yelin")
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -256,7 +311,9 @@ struct PantallaBalanza: View {
     @State private var corrigiendo: Pesada?
 
     var body: some View {
-        Pantalla {
+        Pantalla(titulo: "Peso",
+                 simbolo: "arrow.clockwise",
+                 accion: { balanza.buscarDeNuevo() }) {
             Hero(numero: balanza.pesoKg.map { String(format: "%.2f", $0) } ?? "—",
                  unidad: "kg",
                  estado: balanza.estado,
@@ -308,7 +365,6 @@ struct PantallaBalanza: View {
                 }
             }
         }
-        .navigationTitle("Peso")
         .sheet(isPresented: $cargandoAMano) {
             EditorDePesada { kg, cuando in
                 balanza.agregarAMano(kg: kg, instante: cuando)
@@ -317,13 +373,6 @@ struct PantallaBalanza: View {
         .sheet(item: $corrigiendo) { pesada in
             EditorDePesada(pesada: pesada) { kg, cuando in
                 balanza.reemplazar(pesada, kg: kg, instante: cuando)
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { balanza.buscarDeNuevo() } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
             }
         }
     }

@@ -9,7 +9,9 @@ struct PantallaRemo: View {
     @ObservedObject var remo: LectorDeRemo
 
     var body: some View {
-        Pantalla {
+        Pantalla(titulo: "Remo",
+                 simbolo: "arrow.clockwise",
+                 accion: { remo.buscarDeNuevo() }) {
             Hero(numero: "\(Int(remo.distanciaCalculada))",
                  unidad: "metros",
                  estado: remo.estado,
@@ -97,14 +99,6 @@ struct PantallaRemo: View {
                          enHoras(remo.sesiones.reduce(0) { $0 + $1.segundosRemando }))
                     Linea()
                     Fila("La más larga", masLarga)
-                }
-            }
-        }
-        .navigationTitle("Remo")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { remo.buscarDeNuevo() } label: {
-                    Image(systemName: "arrow.clockwise")
                 }
             }
         }
