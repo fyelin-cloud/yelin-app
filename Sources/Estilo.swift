@@ -417,7 +417,9 @@ struct Progreso: View {
         return "Faltan " + numero(meta - hecho) + unidad
     }
 
+    /// Entero cuando es redondo, con un decimal cuando no, y con separador de
+    /// miles para que 6000 se lea 6.000.
     private func numero(_ v: Double) -> String {
-        v == v.rounded() ? String(format: "%.0f", v) : String(format: "%.1f", v)
+        v == v.rounded() ? Kilos.grande(v) : String(format: "%.1f", v)
     }
 }

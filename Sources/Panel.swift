@@ -229,7 +229,7 @@ enum Panel {
                 calendario.component(.month, from: $0.instante) == mes
                     && calendario.component(.year, from: $0.instante) == anio
             }.reduce(0.0) { $0 + $1.monto }
-            h += barra("Gastos del mes", delMes, tope, "", alReves: true)
+            h += barra("Gastos del mes", delMes, tope, "", prefijo: "$", alReves: true)
         }
 
         h += "<p class=\"vacio\" style=\"margin-bottom:0\">La fecha del peso es la "
@@ -240,21 +240,29 @@ enum Panel {
 
     /// Una barra de avance con su rótulo.
     private static func barra(_ rotulo: String, _ hecho: Double, _ meta: Double,
-                              _ unidad: String, alReves: Bool = false) -> String {
+                              _ unidad: String, prefijo: String = "",
+                              alReves: Bool = false) -> String {
         guard meta > 0 else { return "" }
         let parte = min(1, max(0, hecho / meta))
         let listo = hecho >= meta
         let color = alReves ? (listo ? "var(--mal)" : "var(--acento)")
                             : (listo ? "var(--bien)" : "var(--acento)")
+
+        /// Entero cuando el número es redondo, con un decimal cuando no:
+        /// 1,4 scoops por día tiene que seguir diciendo 1,4.
+        func corto(_ v: Double) -> String {
+            prefijo + (v == v.rounded() ? miles(v) : coma(v, 1))
+        }
+
         let nota: String
         if listo {
-            nota = alReves ? "Se pasó por " + miles(hecho - meta) + unidad : "Cumplido"
+            nota = alReves ? "Se pasó por " + corto(hecho - meta) + unidad : "Cumplido"
         } else {
-            nota = "Faltan " + miles(meta - hecho) + unidad
+            nota = "Faltan " + corto(meta - hecho) + unidad
         }
         var h = "<div style=\"margin-top:16px\">"
         h += "<div style=\"display:flex;justify-content:space-between;font-size:14px\">"
-        h += "<span>\(esc(rotulo))</span><span>\(miles(hecho)) / \(miles(meta))\(esc(unidad))</span></div>"
+        h += "<span>\(esc(rotulo))</span><span>\(corto(hecho)) / \(corto(meta))\(esc(unidad))</span></div>"
         h += "<div class=\"barra\"><i style=\"width:\(fmt(parte * 100))%;background:\(color)\"></i></div>"
         h += "<div style=\"font-size:11px;color:var(--suave);margin-top:5px\">\(esc(nota))</div>"
         return h + "</div>"
