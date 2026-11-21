@@ -32,6 +32,10 @@ targets:
         UIAppFonts:
           - Inter-ExtraBoldItalic.otf
         NSBluetoothAlwaysUsageDescription: La app usa Bluetooth para leer la balanza y la máquina de remo.
+        # Sin esto, al cambiar de app o bloquear el iPad iOS corta la entrega de
+        # datos Bluetooth y la sesión de remo se queda a mitad de camino.
+        UIBackgroundModes:
+          - bluetooth-central
         NSHealthUpdateUsageDescription: La app anota tu peso en Salud para que Google Health lo levante.
         GIDClientID: __GOOGLE_CLIENT_ID__
         CFBundleURLTypes:

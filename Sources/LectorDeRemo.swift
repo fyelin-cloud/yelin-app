@@ -1,5 +1,6 @@
 import Foundation
 import CoreBluetooth
+import UIKit
 
 /// Lo que manda la máquina de remo en cada aviso.
 struct DatosDeRemo {
@@ -59,6 +60,8 @@ final class LectorDeRemo: NSObject, ObservableObject {
     private var instanteAnterior: Date?
     private var ultimoRemo: Date?
     private var sumaDeWattsPorSegundo = 0.0
+    /// Cuánto marcaba el contador acumulado de la máquina al abrir la sesión.
+    private var paladasAlAbrir: Int?
 
     private(set) var tramasCrudas: [String] = []
     private var tramasPendientes: [(instante: Date, trama: String)] = []
@@ -92,6 +95,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
         sesionAbierta = false
         almacen.borrarEnCurso()
         reiniciarAcumuladores()
+        UIApplication.shared.isIdleTimerDisabled = false
     }
 
     func borrar(_ sesion: SesionDeRemo) {
@@ -123,6 +127,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
         segundosTotales = 0
         wattsPromedioCalculado = 0
         paladasDeLaSesion = 0
+        paladasAlAbrir = nil
         sumaDeWattsPorSegundo = 0
         instanteAnterior = nil
         ultimoRemo = nil
@@ -141,15 +146,38 @@ final class LectorDeRemo: NSObject, ObservableObject {
             wattsPromedio: wattsPromedioCalculado)
     }
 
-    private func abrirSesion(_ ahora: Date) {
+    private func abrirSesion(_ ahora: Date, conteo: Int?) {
         inicioDeSesion = ahora
         sesionAbierta = true
         avisoDeRecuperacion = ""
         estado = "Sesión en curso"
+        paladasAlAbrir = conteo
+        // Mientras se rema, la pantalla no se apaga: si el iPad se duerme,
+        // iOS corta la entrega de tramas y la sesión queda trunca.
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+
+    /// Cuántas paladas van en **esta** sesión.
+    ///
+    /// La máquina manda un contador acumulado que **no se reinicia** cuando se
+    /// resetea el display: sigue contando desde que se encendió. Por eso hay
+    /// que guardar cuánto marcaba al abrir la sesión y restar.
+    ///
+    /// Comprobado el 21/11/2026: el display marcaba 20 paladas y la app 26, y
+    /// otra vez 70 contra 76.
+    private func contarPaladas(_ d: DatosDeRemo) {
+        guard let conteo = d.paladasTotales else { return }
+        if paladasAlAbrir == nil { paladasAlAbrir = conteo }
+        // Si la máquina se apagó y volvió, el contador arranca de cero otra
+        // vez: en ese caso se toma el valor nuevo como la nueva base.
+        if let base = paladasAlAbrir, conteo < base { paladasAlAbrir = conteo }
+        let enLaSesion = conteo - (paladasAlAbrir ?? conteo)
+        if enLaSesion > paladasDeLaSesion { paladasDeLaSesion = enLaSesion }
     }
 
     private func cerrarSesion(motivo: String) {
         volcarTramas()
+        UIApplication.shared.isIdleTimerDisabled = false
         guard let sesion = sesionActual(hasta: Date()) else { return }
         inicioDeSesion = nil
         sesionAbierta = false
@@ -243,10 +271,6 @@ final class LectorDeRemo: NSObject, ObservableObject {
     /// tiempo se calculan acá: a un ritmo de X segundos cada 500 m, la
     /// velocidad es 500/X metros por segundo.
     private func acumular(_ d: DatosDeRemo, ahora: Date) {
-        if let conteo = d.paladasTotales, conteo > paladasDeLaSesion {
-            paladasDeLaSesion = conteo
-        }
-
         defer { instanteAnterior = ahora }
         guard let anterior = instanteAnterior else { return }
 
@@ -256,11 +280,13 @@ final class LectorDeRemo: NSObject, ObservableObject {
         let remando = (d.ritmoPor500 ?? 0) > 0
 
         if remando {
-            if inicioDeSesion == nil { abrirSesion(ahora) }
+            if inicioDeSesion == nil { abrirSesion(ahora, conteo: d.paladasTotales) }
             ultimoRemo = ahora
         }
 
         guard inicioDeSesion != nil else { return }
+
+        contarPaladas(d)
         segundosTotales += transcurrido
 
         if remando, let ritmo = d.ritmoPor500 {
