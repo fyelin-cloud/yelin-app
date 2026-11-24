@@ -7,6 +7,7 @@ import SwiftUI
 /// abrir el anotador ya viene cargado con lo último que levantó.
 struct PantallaPesas: View {
     @ObservedObject var pesas: Pesas
+    @ObservedObject var fierros: Fierros
 
     @State private var anotando = false
     @State private var ejercicioElegido: String?
@@ -44,6 +45,10 @@ struct PantallaPesas: View {
                 Navega(texto: "Mis ejercicios", simbolo: "list.bullet",
                        detalle: "\(pesas.lista.count)") {
                     MisEjercicios(pesas: pesas)
+                }
+                Linea()
+                Navega(texto: "Calculadoras", simbolo: "function") {
+                    PantallaCalculadoras(pesas: pesas, fierros: fierros)
                 }
             }
         }

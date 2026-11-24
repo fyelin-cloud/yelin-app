@@ -138,6 +138,7 @@ final class Pesas: ObservableObject {
                           repeticiones: repeticiones, kilos: max(0, kilos))
         almacen.agregarSerie(nueva)
         series.insert(nueva, at: 0)
+        Tacto.guardado()
         subir()
     }
 

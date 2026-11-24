@@ -46,7 +46,7 @@ final class Almacen {
     var archivosParaSubir: [URL] {
         [urlResumen, urlPesadas, urlTramas, urlSesiones, urlTramasDeRemo,
          urlConsumo, urlNotas, urlGastos, urlPesas, urlPanel, urlRecordatorios,
-         urlObjetivos, urlCarpetas, urlLibreta] + imagenesDeLibreta
+         urlObjetivos, urlCarpetas, urlLibreta, urlEquipo] + imagenesDeLibreta
     }
 
     let fechas: ISO8601DateFormatter = {

@@ -46,6 +46,14 @@ final class LectorDeRemo: NSObject, ObservableObject {
     @Published var wattsPromedioCalculado = 0.0
     @Published var paladasDeLaSesion = 0
 
+    /// Si avisa por voz cada 500 metros. Se recuerda entre sesiones.
+    @Published var avisosPorVoz = UserDefaults.standard.bool(forKey: "avisosPorVoz") {
+        didSet {
+            UserDefaults.standard.set(avisosPorVoz, forKey: "avisosPorVoz")
+            if !avisosPorVoz { Voz.callar() }
+        }
+    }
+
     @Published var sesionAbierta = false
     @Published var sesiones: [SesionDeRemo] = []
     @Published var avisoDeRecuperacion = ""
@@ -62,6 +70,8 @@ final class LectorDeRemo: NSObject, ObservableObject {
     private var sumaDeWattsPorSegundo = 0.0
     /// Cuánto marcaba el contador acumulado de la máquina al abrir la sesión.
     private var paladasAlAbrir: Int?
+    /// A qué distancia toca el próximo aviso por voz.
+    private var proximoAviso = 500.0
 
     private(set) var tramasCrudas: [String] = []
     private var tramasPendientes: [(instante: Date, trama: String)] = []
@@ -128,6 +138,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
         wattsPromedioCalculado = 0
         paladasDeLaSesion = 0
         paladasAlAbrir = nil
+        proximoAviso = 500
         sumaDeWattsPorSegundo = 0
         instanteAnterior = nil
         ultimoRemo = nil
@@ -152,6 +163,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
         avisoDeRecuperacion = ""
         estado = "Sesión en curso"
         paladasAlAbrir = conteo
+        proximoAviso = 500
         // Mientras se rema, la pantalla no se apaga: si el iPad se duerme,
         // iOS corta la entrega de tramas y la sesión queda trunca.
         UIApplication.shared.isIdleTimerDisabled = true
@@ -296,6 +308,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
                 sumaDeWattsPorSegundo += Double(w) * transcurrido
                 wattsPromedioCalculado = sumaDeWattsPorSegundo / max(segundosRemando, 1)
             }
+            avisarSiCorresponde(ritmo)
         }
 
         // Se anota cada cinco segundos, no en cada trama: alcanza para no
@@ -310,6 +323,18 @@ final class LectorDeRemo: NSObject, ObservableObject {
            ahora.timeIntervalSince(ultimo) > Self.segundosParaCerrarSesion {
             cerrarSesion(motivo: "sin remar")
         }
+    }
+
+    /// El aviso hablado de cada 500 metros.
+    ///
+    /// Solo suena con la app abierta: para hablar con la pantalla apagada
+    /// haría falta el permiso de audio en segundo plano, que obliga a tener
+    /// algo sonando todo el tiempo y haría que iOS cierre la app.
+    private func avisarSiCorresponde(_ ritmo: Int) {
+        guard avisosPorVoz, distanciaCalculada >= proximoAviso else { return }
+        let marca = Int(proximoAviso)
+        proximoAviso += 500
+        Voz.decir("\(marca) metros. Ritmo \(Voz.ritmoHablado(ritmo)) por 500.")
     }
 
     private func recibir(_ datosCrudos: Data) {

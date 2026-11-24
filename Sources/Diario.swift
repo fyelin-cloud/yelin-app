@@ -40,6 +40,7 @@ final class Diario: ObservableObject {
         let nuevo = Consumo(instante: Date(), cantidad: cuantos, que: "proteína")
         almacen.agregarConsumo(nuevo)
         consumo.insert(nuevo, at: 0)
+        Tacto.guardado()
         subir()
     }
 
@@ -196,6 +197,7 @@ final class Diario: ObservableObject {
                           detalle: detalle.trimmingCharacters(in: .whitespaces))
         almacen.agregarGasto(nuevo)
         gastos.insert(nuevo, at: 0)
+        Tacto.guardado()
         subir()
     }
 

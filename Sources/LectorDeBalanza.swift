@@ -167,6 +167,7 @@ final class LectorDeBalanza: NSObject, ObservableObject {
         let pesada = Pesada(instante: ahora, gramos: gramos)
         almacen.agregarPesada(pesada)
         pesadas.insert(pesada, at: 0)
+        Tacto.guardado()
         ultimaGuardada = pesada
         estado = "Guardado"
         sincronizador.subirEnSegundoPlano()

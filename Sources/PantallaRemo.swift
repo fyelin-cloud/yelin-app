@@ -8,6 +8,8 @@ import SwiftUI
 struct PantallaRemo: View {
     @ObservedObject var remo: LectorDeRemo
 
+    @State private var enGrande = false
+
     var body: some View {
         Pantalla(titulo: "Remo",
                  simbolo: "arrow.clockwise",
@@ -17,6 +19,27 @@ struct PantallaRemo: View {
                  estado: remo.estado,
                  señal: remo.sesionAbierta ? .conectado : .esperando,
                  alPie: alPie)
+
+            Bloque(pie: "Los avisos suenan con la app abierta y se mezclan con la "
+                      + "música, no la cortan.") {
+                Accion(texto: "Ver en grande mientras remo", simbolo: "arrow.up.left.and.arrow.down.right") {
+                    enGrande = true
+                }
+                Linea()
+                Celda {
+                    Toggle(isOn: $remo.avisosPorVoz) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Avisos por voz")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(Paleta.texto)
+                            Text("El parcial hablado cada 500 metros")
+                                .font(.system(size: 12))
+                                .foregroundColor(Paleta.suave)
+                        }
+                    }
+                    .tint(Paleta.acento)
+                }
+            }
 
             if !remo.avisoDeRecuperacion.isEmpty {
                 Bloque {
@@ -101,6 +124,9 @@ struct PantallaRemo: View {
                     Fila("La más larga", masLarga)
                 }
             }
+        }
+        .fullScreenCover(isPresented: $enGrande) {
+            PantallaRemoEnVivo(remo: remo)
         }
     }
 

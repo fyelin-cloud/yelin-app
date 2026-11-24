@@ -9,6 +9,7 @@ struct AplicacionYelin: App {
     @StateObject private var pesas: Pesas
     @StateObject private var metas: Metas
     @StateObject private var libreta: Libreta
+    @StateObject private var fierros: Fierros
 
     @State private var abriendo = true
 
@@ -23,6 +24,7 @@ struct AplicacionYelin: App {
         _pesas = StateObject(wrappedValue: Pesas(sincronizador: compartido))
         _metas = StateObject(wrappedValue: Metas(sincronizador: compartido))
         _libreta = StateObject(wrappedValue: Libreta(sincronizador: compartido))
+        _fierros = StateObject(wrappedValue: Fierros(sincronizador: compartido))
         Avisos.compartido.arrancar(sincronizador: compartido, diario: cuaderno)
     }
 
@@ -31,7 +33,7 @@ struct AplicacionYelin: App {
             ZStack {
                 Raiz(sincronizador: sincronizador, balanza: balanza,
                      remo: remo, diario: diario, pesas: pesas, metas: metas,
-                     libreta: libreta)
+                     libreta: libreta, fierros: fierros)
 
                 if abriendo {
                     PantallaDeApertura {
@@ -104,6 +106,7 @@ struct Raiz: View {
     @ObservedObject var pesas: Pesas
     @ObservedObject var metas: Metas
     @ObservedObject var libreta: Libreta
+    @ObservedObject var fierros: Fierros
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
     @State private var seccion: Seccion = .hoy
@@ -163,7 +166,7 @@ struct Raiz: View {
         case .hoy:
             PantallaHoy(balanza: balanza, remo: remo, sincronizador: sincronizador,
                         diario: diario, pesas: pesas, metas: metas, libreta: libreta,
-                        ir: $seccion)
+                        fierros: fierros, ir: $seccion)
         case .semana:
             PantallaSemana(balanza: balanza, remo: remo, diario: diario,
                            pesas: pesas, metas: metas)
@@ -174,7 +177,7 @@ struct Raiz: View {
         case .remo:
             PantallaRemo(remo: remo)
         case .pesas:
-            PantallaPesas(pesas: pesas)
+            PantallaPesas(pesas: pesas, fierros: fierros)
         case .proteina:
             PantallaProteina(diario: diario)
         case .notas:

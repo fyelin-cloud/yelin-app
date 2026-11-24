@@ -12,6 +12,7 @@ struct PantallaHoy: View {
     @ObservedObject var pesas: Pesas
     @ObservedObject var metas: Metas
     @ObservedObject var libreta: Libreta
+    @ObservedObject var fierros: Fierros
     @Binding var ir: Seccion
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
@@ -105,7 +106,7 @@ struct PantallaHoy: View {
         case .gastos:     PantallaGastos(diario: diario)
         case .semana:     PantallaSemana(balanza: balanza, remo: remo,
                                          diario: diario, pesas: pesas, metas: metas)
-        case .pesas:      PantallaPesas(pesas: pesas)
+        case .pesas:      PantallaPesas(pesas: pesas, fierros: fierros)
         default:          PantallaAjustes(sincronizador: sincronizador, balanza: balanza,
                                           remo: remo, pesas: pesas, metas: metas)
         }
