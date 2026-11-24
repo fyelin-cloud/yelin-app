@@ -11,6 +11,7 @@ struct PantallaHoy: View {
     @ObservedObject var diario: Diario
     @ObservedObject var pesas: Pesas
     @ObservedObject var metas: Metas
+    @ObservedObject var libreta: Libreta
     @Binding var ir: Seccion
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
@@ -69,6 +70,7 @@ struct PantallaHoy: View {
             tarjeta(.constancia, detalle: detalleDeConstancia)
             tarjeta(.proteina, detalle: detalleDeProteina)
             tarjeta(.notas, detalle: detalleDeNotas)
+            tarjeta(.libreta, detalle: detalleDeLibreta)
             tarjeta(.gastos, detalle: detalleDeGastos)
         }
     }
@@ -99,6 +101,7 @@ struct PantallaHoy: View {
         case .constancia: PantallaConstancia(balanza: balanza, remo: remo, pesas: pesas)
         case .proteina:   PantallaProteina(diario: diario)
         case .notas:      PantallaNotas(diario: diario)
+        case .libreta:    PantallaLibreta(libreta: libreta, diario: diario)
         case .gastos:     PantallaGastos(diario: diario)
         case .semana:     PantallaSemana(balanza: balanza, remo: remo,
                                          diario: diario, pesas: pesas, metas: metas)
@@ -156,6 +159,14 @@ struct PantallaHoy: View {
         let cuantas = diario.notas.count
         if cuantas == 0 { return "Sin notas todavía" }
         return cuantas == 1 ? "1 nota" : "\(cuantas) notas"
+    }
+
+    private var detalleDeLibreta: String {
+        let cuantas = libreta.paginas.count
+        if cuantas == 0 { return "Sin hojas todavía" }
+        guard let ultima = libreta.paginas.first else { return "\(cuantas) hojas" }
+        return "\(cuantas) " + (cuantas == 1 ? "hoja" : "hojas")
+            + " · " + Fechas.relativa(ultima.modificada)
     }
 
     private var detalleDeGastos: String {

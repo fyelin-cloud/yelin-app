@@ -8,6 +8,7 @@ struct AplicacionYelin: App {
     @StateObject private var diario: Diario
     @StateObject private var pesas: Pesas
     @StateObject private var metas: Metas
+    @StateObject private var libreta: Libreta
 
     @State private var abriendo = true
 
@@ -21,6 +22,7 @@ struct AplicacionYelin: App {
         _diario = StateObject(wrappedValue: cuaderno)
         _pesas = StateObject(wrappedValue: Pesas(sincronizador: compartido))
         _metas = StateObject(wrappedValue: Metas(sincronizador: compartido))
+        _libreta = StateObject(wrappedValue: Libreta(sincronizador: compartido))
         Avisos.compartido.arrancar(sincronizador: compartido, diario: cuaderno)
     }
 
@@ -28,7 +30,8 @@ struct AplicacionYelin: App {
         WindowGroup {
             ZStack {
                 Raiz(sincronizador: sincronizador, balanza: balanza,
-                     remo: remo, diario: diario, pesas: pesas, metas: metas)
+                     remo: remo, diario: diario, pesas: pesas, metas: metas,
+                     libreta: libreta)
 
                 if abriendo {
                     PantallaDeApertura {
@@ -47,7 +50,8 @@ struct AplicacionYelin: App {
 
 /// Cada pantalla que se puede abrir desde el menú.
 enum Seccion: String, CaseIterable, Identifiable {
-    case hoy, semana, constancia, peso, remo, pesas, proteina, notas, gastos, ajustes
+    case hoy, semana, constancia, peso, remo, pesas, proteina, notas, libreta,
+         gastos, ajustes
 
     var id: String { rawValue }
 
@@ -61,6 +65,7 @@ enum Seccion: String, CaseIterable, Identifiable {
         case .pesas: return "Pesas"
         case .proteina: return "Proteína"
         case .notas: return "Notas"
+        case .libreta: return "Libreta"
         case .gastos: return "Gastos"
         case .ajustes: return "Ajustes"
         }
@@ -76,6 +81,7 @@ enum Seccion: String, CaseIterable, Identifiable {
         case .pesas: return "dumbbell"
         case .proteina: return "cup.and.saucer"
         case .notas: return "note.text"
+        case .libreta: return "pencil.and.outline"
         case .gastos: return "dollarsign.circle"
         case .ajustes: return "gearshape"
         }
@@ -97,6 +103,7 @@ struct Raiz: View {
     @ObservedObject var diario: Diario
     @ObservedObject var pesas: Pesas
     @ObservedObject var metas: Metas
+    @ObservedObject var libreta: Libreta
 
     @Environment(\.horizontalSizeClass) private var anchoDePantalla
     @State private var seccion: Seccion = .hoy
@@ -155,7 +162,8 @@ struct Raiz: View {
         switch s {
         case .hoy:
             PantallaHoy(balanza: balanza, remo: remo, sincronizador: sincronizador,
-                        diario: diario, pesas: pesas, metas: metas, ir: $seccion)
+                        diario: diario, pesas: pesas, metas: metas, libreta: libreta,
+                        ir: $seccion)
         case .semana:
             PantallaSemana(balanza: balanza, remo: remo, diario: diario,
                            pesas: pesas, metas: metas)
@@ -171,6 +179,8 @@ struct Raiz: View {
             PantallaProteina(diario: diario)
         case .notas:
             PantallaNotas(diario: diario)
+        case .libreta:
+            PantallaLibreta(libreta: libreta, diario: diario)
         case .gastos:
             PantallaGastos(diario: diario)
         case .ajustes:
@@ -189,7 +199,7 @@ extension Seccion {
     static let grupos: [(String?, [Seccion])] = [
         (nil, [.hoy, .semana, .constancia]),
         ("El cuerpo", [.peso, .remo, .pesas]),
-        ("Día a día", [.proteina, .notas, .gastos]),
+        ("Día a día", [.proteina, .notas, .libreta, .gastos]),
         (nil, [.ajustes])
     ]
 }

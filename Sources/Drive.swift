@@ -182,6 +182,9 @@ final class Drive: NSObject {
                 tipo = "text/markdown"
             } else if nombre.hasSuffix(".txt") {
                 tipo = "text/plain"
+            } else if nombre.hasSuffix(".png") {
+                // Las hojas de la libreta: se suben tal cual, en binario.
+                tipo = "image/png"
             } else {
                 tipo = "text/csv"
             }

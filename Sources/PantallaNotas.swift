@@ -103,8 +103,7 @@ struct PantallaNotas: View {
                 NavigationLink {
                     Empuje { PantallaCarpeta(diario: diario, vista: .carpeta(nombre)) }
                 } label: {
-                    Carpeta(nombre: nombre, cuantas: diario.cuantasEn(nombre),
-                            simbolo: "folder", acento: true)
+                    FichaDeCarpeta(nombre: nombre, cuantas: diario.cuantasEn(nombre))
                 }
                 .buttonStyle(.plain)
             }
@@ -113,8 +112,8 @@ struct PantallaNotas: View {
                 NavigationLink {
                     Empuje { PantallaCarpeta(diario: diario, vista: .sinCarpeta) }
                 } label: {
-                    Carpeta(nombre: "Sin carpeta", cuantas: diario.sinCarpeta,
-                            simbolo: "tray", acento: false)
+                    FichaDeCarpeta(nombre: "Sin carpeta", cuantas: diario.sinCarpeta,
+                                   simbolo: "tray", acento: false)
                 }
                 .buttonStyle(.plain)
             }
@@ -124,8 +123,8 @@ struct PantallaNotas: View {
                 NavigationLink {
                     Empuje { PantallaCarpeta(diario: diario, vista: .importantes) }
                 } label: {
-                    Carpeta(nombre: "Importantes", cuantas: marcadas,
-                            simbolo: "star.fill", acento: true)
+                    FichaDeCarpeta(nombre: "Importantes", cuantas: marcadas,
+                                   simbolo: "star.fill")
                 }
                 .buttonStyle(.plain)
             }
@@ -171,40 +170,6 @@ struct PantallaNotas: View {
                 }
             }
         }
-    }
-}
-
-/// Una carpeta en la grilla.
-private struct Carpeta: View {
-    let nombre: String
-    let cuantas: Int
-    let simbolo: String
-    let acento: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Image(systemName: simbolo)
-                .font(.system(size: 19, weight: .medium))
-                .foregroundColor(acento ? Paleta.acento : Paleta.suave)
-            Spacer(minLength: 10)
-            Text(nombre)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundColor(Paleta.texto)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .minimumScaleFactor(0.85)
-            Text(cuantas == 1 ? "1 nota" : "\(cuantas) notas")
-                .font(.system(size: 11.5))
-                .foregroundColor(Paleta.suave)
-                .padding(.top, 3)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 112)
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: Medida.radio, style: .continuous)
-            .fill(Paleta.superficie))
-        .overlay(RoundedRectangle(cornerRadius: Medida.radio, style: .continuous)
-            .stroke(Paleta.borde, lineWidth: 1))
     }
 }
 

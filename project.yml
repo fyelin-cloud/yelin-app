@@ -16,6 +16,7 @@ targets:
       - path: Fuentes
     dependencies:
       - sdk: HealthKit.framework
+      - sdk: PencilKit.framework
     settings:
       base:
         PRODUCT_NAME: YelinApp

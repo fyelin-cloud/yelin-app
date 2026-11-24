@@ -705,3 +705,41 @@ struct Eleccion: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Carpetas
+
+/// La tarjeta de una carpeta, con su nombre y cuántas cosas tiene adentro.
+/// La usan las notas y la libreta.
+struct FichaDeCarpeta: View {
+    let nombre: String
+    let cuantas: Int
+    var simbolo = "folder"
+    var acento = true
+    var unidad = "nota"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: simbolo)
+                .font(.system(size: 19, weight: .medium))
+                .foregroundColor(acento ? Paleta.acento : Paleta.suave)
+            Spacer(minLength: 10)
+            Text(nombre)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(Paleta.texto)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .minimumScaleFactor(0.85)
+            Text(cuantas == 1 ? "1 \(unidad)" : "\(cuantas) \(unidad)s")
+                .font(.system(size: 11.5))
+                .foregroundColor(Paleta.suave)
+                .padding(.top, 3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 112)
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: Medida.radio, style: .continuous)
+            .fill(Paleta.superficie))
+        .overlay(RoundedRectangle(cornerRadius: Medida.radio, style: .continuous)
+            .stroke(Paleta.borde, lineWidth: 1))
+    }
+}
