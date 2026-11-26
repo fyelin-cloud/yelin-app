@@ -73,6 +73,28 @@ final class LectorDeRemo: NSObject, ObservableObject {
     /// A qué distancia toca el próximo aviso por voz.
     private var proximoAviso = 500.0
 
+    /// La misma distancia, pero calculada desde los watts en vez del ritmo.
+    ///
+    /// **Por qué hay dos.** El "ritmo" que manda esta máquina por Bluetooth
+    /// sale **solo de las paladas por minuto**: es exactamente `5000 / spm`,
+    /// comprobado dos veces al byte. O sea que no sabe nada de cuánto tirás:
+    /// veinte paladas suaves y veinte paladas fuertes le dan el mismo ritmo.
+    /// Por eso la distancia que sale de ahí nunca va a seguir al display.
+    ///
+    /// Los watts, en cambio, sí miden el esfuerzo real. La velocidad de un
+    /// remo sale de la potencia con `v = (watts / k)^(1/3)`, y `k ≈ 2,80` es
+    /// el valor que usa Concept2. Con los primeros números de Facundo da
+    /// bastante bien, pero falta confirmarlo contra el display.
+    ///
+    /// Las dos se muestran en la pantalla hasta saber cuál coincide.
+    @Published var distanciaPorWatts = 0.0
+
+    /// Metros por segundo a partir de los watts.
+    static func velocidad(watts: Double) -> Double {
+        guard watts > 0 else { return 0 }
+        return pow(watts / 2.80, 1.0 / 3.0)
+    }
+
     private(set) var tramasCrudas: [String] = []
     private var tramasPendientes: [(instante: Date, trama: String)] = []
     private var ultimoGuardadoEnCurso = Date.distantPast
@@ -133,6 +155,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
 
     private func reiniciarAcumuladores() {
         distanciaCalculada = 0
+        distanciaPorWatts = 0
         segundosRemando = 0
         segundosTotales = 0
         wattsPromedioCalculado = 0
@@ -307,6 +330,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
             if let w = d.watts, w > 0 {
                 sumaDeWattsPorSegundo += Double(w) * transcurrido
                 wattsPromedioCalculado = sumaDeWattsPorSegundo / max(segundosRemando, 1)
+                distanciaPorWatts += Self.velocidad(watts: Double(w)) * transcurrido
             }
             avisarSiCorresponde(ritmo)
         }

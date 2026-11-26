@@ -119,6 +119,7 @@ struct PantallaRemoEnVivo: View {
                 String(format: "%.0f", $0)
             } ?? "—")
             chico("Watts", remo.datos.watts.map { "\($0)" } ?? "—")
+            chico("Por watts", "\(Int(remo.distanciaPorWatts))")
             chico("Tiempo", reloj(Int(remo.segundosRemando)))
         }
     }

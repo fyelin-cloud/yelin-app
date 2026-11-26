@@ -79,9 +79,16 @@ struct PantallaRemo: View {
                 Fila("Paladas contadas", entero(remo.datos.paladasTotales))
             }
 
-            Bloque(titulo: "Lo que calcula la app",
-                   pie: "La máquina no manda distancia ni tiempo. Falta calibrar estos "
-                      + "números contra el display del aparato.") {
+            Bloque(titulo: "Las dos distancias",
+                   pie: "El ritmo que manda la máquina sale solo de las paladas por "
+                      + "minuto, así que no sabe cuánto tirás. Los watts sí. Mirá "
+                      + "cuál de las dos coincide con el display y avisame.") {
+                Fila("Por el ritmo", "\(Int(remo.distanciaCalculada)) m")
+                Linea()
+                Fila("Por los watts", "\(Int(remo.distanciaPorWatts)) m", resaltado: true)
+            }
+
+            Bloque(titulo: "Lo que calcula la app") {
                 Fila("Tiempo remando", enMinutos(Int(remo.segundosRemando)))
                 Linea()
                 Fila("Tiempo total", enMinutos(Int(remo.segundosTotales)))
