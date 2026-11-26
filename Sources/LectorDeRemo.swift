@@ -95,6 +95,40 @@ final class LectorDeRemo: NSObject, ObservableObject {
         return pow(watts / 2.80, 1.0 / 3.0)
     }
 
+    /// Más rápido que esto no rema nadie: 6,5 m/s son 1:17 cada 500 metros,
+    /// más rápido que un récord mundial. Todo lo que pase de acá es basura
+    /// de la máquina, no remo.
+    static let velocidadTope = 6.5
+
+    /// Más lento que esto tampoco: un ritmo por debajo de 70 segundos cada
+    /// 500 m es el pico que larga la máquina en la primera palada.
+    static let ritmoMinimoCreible = 70
+
+    private var conteoPrevio: Int?
+    private var ultimoCambioDePaladas: Date?
+
+    /// Si de verdad está remando en este momento.
+    ///
+    /// **Por qué no alcanza con mirar el ritmo.** La máquina sigue informando
+    /// el último ritmo un rato después de que soltás el remo, y en la primera
+    /// palada larga un pico absurdo —se vieron 127 paladas por minuto, que
+    /// con la fórmula `5000/spm` dan 13 metros por segundo—. Integrando eso,
+    /// una sola palada sumaba cien metros.
+    ///
+    /// Así que se piden tres cosas: que el ritmo sea creíble, que el contador
+    /// de paladas haya avanzado, y que ese avance sea reciente.
+    private func estaRemando(_ d: DatosDeRemo, ahora: Date) -> Bool {
+        guard let ritmo = d.ritmoPor500, ritmo >= Self.ritmoMinimoCreible else { return false }
+
+        guard let conteo = d.paladasTotales else { return true }
+        if conteo != conteoPrevio {
+            conteoPrevio = conteo
+            ultimoCambioDePaladas = ahora
+        }
+        guard let ultimo = ultimoCambioDePaladas else { return false }
+        return ahora.timeIntervalSince(ultimo) < 4
+    }
+
     private(set) var tramasCrudas: [String] = []
     private var tramasPendientes: [(instante: Date, trama: String)] = []
     private var ultimoGuardadoEnCurso = Date.distantPast
@@ -162,6 +196,8 @@ final class LectorDeRemo: NSObject, ObservableObject {
         paladasDeLaSesion = 0
         paladasAlAbrir = nil
         proximoAviso = 500
+        conteoPrevio = nil
+        ultimoCambioDePaladas = nil
         sumaDeWattsPorSegundo = 0
         instanteAnterior = nil
         ultimoRemo = nil
@@ -312,7 +348,7 @@ final class LectorDeRemo: NSObject, ObservableObject {
         let transcurrido = ahora.timeIntervalSince(anterior)
         guard transcurrido > 0, transcurrido < 5 else { return }
 
-        let remando = (d.ritmoPor500 ?? 0) > 0
+        let remando = estaRemando(d, ahora: ahora)
 
         if remando {
             if inicioDeSesion == nil { abrirSesion(ahora, conteo: d.paladasTotales) }
@@ -326,11 +362,12 @@ final class LectorDeRemo: NSObject, ObservableObject {
 
         if remando, let ritmo = d.ritmoPor500 {
             segundosRemando += transcurrido
-            distanciaCalculada += (500.0 / Double(ritmo)) * transcurrido
+            distanciaCalculada += min(500.0 / Double(ritmo), Self.velocidadTope) * transcurrido
             if let w = d.watts, w > 0 {
                 sumaDeWattsPorSegundo += Double(w) * transcurrido
                 wattsPromedioCalculado = sumaDeWattsPorSegundo / max(segundosRemando, 1)
-                distanciaPorWatts += Self.velocidad(watts: Double(w)) * transcurrido
+                distanciaPorWatts += min(Self.velocidad(watts: Double(w)),
+                                         Self.velocidadTope) * transcurrido
             }
             avisarSiCorresponde(ritmo)
         }
